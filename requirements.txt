@@ -1,0 +1,12 @@
+flask>=3.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+shap>=0.44.0
+langdetect>=1.0.9
+# Optional heavy NLP/ONNX packages (pipeline works with or without them installed):
+# spacy>=3.7.0
+# sentence-transformers>=2.5.0
+# onnxruntime>=1.17.0
+# transformers>=4.38.0
+# torch>=2.1.0
