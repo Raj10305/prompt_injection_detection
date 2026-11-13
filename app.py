@@ -39,6 +39,8 @@ except ImportError:
     shap = None
 
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 # Load dataset records into memory for the live Dataset Explorer buttons
 _, _, _, KAGGLE_RECORDS = load_jsonl_dataset(ui_only=True)
