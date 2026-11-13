@@ -267,6 +267,54 @@ def random_dataset_sample():
     return jsonify(sample)
 
 
+@app.post("/api/upload-file")
+def upload_file():
+    """Extract and return text from an uploaded document (TXT, MD, PDF, CSV, JSON, Code, LOG, etc.)."""
+    if "file" not in request.files:
+        return jsonify(ok=False, error="No file provided in request"), 400
+    f = request.files["file"]
+    if not f or not f.filename:
+        return jsonify(ok=False, error="Empty filename"), 400
+
+    filename = f.filename
+    ext = os.path.splitext(filename)[1].lower()
+    raw_bytes = f.read()
+    extracted_text = ""
+
+    if ext == ".pdf":
+        try:
+            import io
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(raw_bytes))
+            pages_text = []
+            for i, page in enumerate(reader.pages):
+                txt = page.extract_text()
+                if txt:
+                    pages_text.append(f"--- Page {i+1} ---\n{txt.strip()}")
+            extracted_text = "\n\n".join(pages_text).strip()
+            if not extracted_text:
+                extracted_text = "[Notice: PDF contains no selectable text or is image-based]"
+        except Exception as e:
+            return jsonify(ok=False, error=f"Could not read PDF: {str(e)}"), 400
+    else:
+        # Plain text, Markdown, CSV, JSON, Python, Code, logs, etc.
+        try:
+            extracted_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                extracted_text = raw_bytes.decode("latin-1")
+            except Exception as e:
+                return jsonify(ok=False, error=f"Could not decode text file: {str(e)}"), 400
+
+    return jsonify({
+        "ok": True,
+        "filename": filename,
+        "size": len(raw_bytes),
+        "text": extracted_text,
+        "char_count": len(extracted_text),
+    })
+
+
 @app.post("/v1/analyze")
 def analyze():
     body = request.get_json(silent=True) or {}
@@ -277,7 +325,10 @@ def analyze():
     if model:
         set_active_model(model)
     if not prompt:
-        return jsonify(error="prompt is required"), 400
+        if context:
+            prompt = "Review and analyze the attached document."
+        else:
+            return jsonify(error="prompt or attached file is required"), 400
     rec = run_pipeline(prompt, context, meta=meta, model=model)
     return jsonify(rec), 200
 

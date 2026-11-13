@@ -54,10 +54,10 @@
       --block-bg: #FEF2F2;
       --block-border: #FECACA;
 
-      --radius-sm: 0px;
-      --radius-md: 0px;
-      --radius-lg: 0px;
-      --radius-pill: 0px;
+      --radius-sm: 0px !important;
+      --radius-md: 0px !important;
+      --radius-lg: 0px !important;
+      --radius-pill: 0px !important;
 
       --shadow-sm: 0 2px 10px rgba(17, 24, 39, 0.04);
       --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.07);
@@ -357,6 +357,114 @@
       border-radius: var(--radius-pill);
     }
 
+    /* File Upload Dropzone & Attachment Styling (Square Theme) */
+    .file-dropzone {
+      border: 2px dashed var(--border-secondary);
+      background: var(--bg-secondary-subtle);
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      user-select: none;
+    }
+
+    .file-dropzone:hover, .file-dropzone.drag-active {
+      border-color: var(--accent-primary);
+      background: #EBF0FF;
+    }
+
+    .file-dropzone-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .file-dropzone-sub {
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+    }
+
+    .attached-files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .attached-file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-secondary);
+      border-left: 4px solid var(--accent-primary);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .attached-file-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .attached-file-name {
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .attached-file-size {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .attached-file-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-file-action {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-secondary);
+      color: var(--text-main);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-file-action:hover {
+      background: var(--accent-primary);
+      color: #FFFFFF;
+      border-color: var(--accent-primary);
+    }
+
+    .btn-file-action.btn-file-danger {
+      background: var(--block-bg);
+      border-color: var(--block-border);
+      color: var(--block-color);
+    }
+
+    .btn-file-action.btn-file-danger:hover {
+      background: var(--block-color);
+      color: #FFFFFF;
+    }
+
     /* Cards (60% Dominant White) */
     .card {
       background: var(--bg-card);
@@ -600,7 +708,7 @@
       width: 100%;
       height: 10px;
       background: var(--bg-dominant);
-      border-radius: 5px;
+      border-radius: 0px;
       overflow: hidden;
       margin-bottom: 16px;
       border: 1px solid var(--border);
@@ -817,13 +925,13 @@
       flex: 1;
       height: 8px;
       background: var(--bg-secondary);
-      border-radius: 4px;
+      border-radius: 0px;
       overflow: hidden;
     }
 
     .shap-fill {
       height: 100%;
-      border-radius: 4px;
+      border-radius: 0px;
     }
 
     /* Benchmarks Cards Grid */
@@ -866,14 +974,14 @@
       width: 100%;
       height: 9px;
       background: var(--bg-secondary);
-      border-radius: 5px;
+      border-radius: 0px;
       overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
       background: var(--accent-primary);
-      border-radius: 5px;
+      border-radius: 0px;
     }
 
     /* Confusion Matrix 2x2 */
@@ -1145,12 +1253,30 @@
           <div id="kaggle-meta-banner" class="sample-banner"></div>
 
           <label class="field-label" for="prompt-input">User Prompt</label>
-          <textarea id="prompt-input" rows="5" placeholder="Enter a prompt to test the guardrail or choose a preset above..."></textarea>
+          <textarea id="prompt-input" rows="4" placeholder="Enter a prompt to test the guardrail or choose a preset above..."></textarea>
+
+          <!-- Attach File or Document Feature -->
+          <div class="section-subtitle">
+            <span>Attach File or Document</span>
+            <span style="font-size:0.72rem; color:var(--text-muted);">TXT, MD, PDF, CSV, JSON, CODE</span>
+          </div>
+
+          <!-- Hidden File Input -->
+          <input type="file" id="file-upload-input" style="display:none;" multiple accept=".txt,.md,.pdf,.csv,.json,.py,.js,.ts,.html,.xml,.yaml,.yml,.log,.env,.sh,.bat" onchange="handleFilesSelected(event)">
+
+          <!-- Drag and Drop Dropzone -->
+          <div class="file-dropzone" id="file-dropzone" onclick="document.getElementById('file-upload-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <div class="file-dropzone-title">Upload File or Drop Here</div>
+            <div class="file-dropzone-sub">Upload files to screen for indirect prompt injection or analyze with Ollama</div>
+          </div>
+
+          <!-- Attached Files List Container -->
+          <div id="attached-files-container" class="attached-files-list" style="display:none;"></div>
 
           <label class="field-label" for="context-input">
             Optional External / RAG Context
           </label>
-          <textarea id="context-input" rows="3" placeholder="Paste optional external context to scan for indirect injections..."></textarea>
+          <textarea id="context-input" rows="2" placeholder="Paste optional external context to scan for indirect injections..."></textarea>
 
           <button id="submit-prompt-btn" class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.94rem; margin-top: auto;" onclick="submitPrompt()">
             Inspect Prompt &amp; Query Ollama
@@ -1498,11 +1624,150 @@
 
   <script>
     let lastSelectedItem = null;
+    let attachedFiles = [];
 
     const SPINNER_MARKUP = `<span class="spinner-wrap"><div class="spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></span>`;
 
     function renderLoadingWithSpinner(text) {
       return `<span class="loading-inline">${SPINNER_MARKUP}<span>${text}</span></span>`;
+    }
+
+    /* File Attachment & Extraction Handlers */
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById("file-dropzone")?.classList.add("drag-active");
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById("file-dropzone")?.classList.remove("drag-active");
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById("file-dropzone")?.classList.remove("drag-active");
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        processUploadedFiles(files);
+      }
+    }
+
+    function handleFilesSelected(e) {
+      const files = e.target?.files;
+      if (files && files.length > 0) {
+        processUploadedFiles(files);
+      }
+      e.target.value = "";
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+    }
+
+    async function processUploadedFiles(fileList) {
+      const container = document.getElementById("attached-files-container");
+      container.style.display = "flex";
+
+      for (const file of fileList) {
+        const fileId = "file-" + Math.random().toString(36).substring(2, 9);
+        const placeholder = document.createElement("div");
+        placeholder.id = fileId;
+        placeholder.className = "attached-file-item";
+        placeholder.innerHTML = `
+          <div class="attached-file-info">
+            <span class="attached-file-name">${escapeHtml(file.name)}</span>
+            <span class="attached-file-size">(${formatBytes(file.size)})</span>
+          </div>
+          <div>${renderLoadingWithSpinner("Extracting text...")}</div>
+        `;
+        container.appendChild(placeholder);
+
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/upload-file", {
+            method: "POST",
+            body: formData
+          });
+          const data = await res.json();
+          if (data.ok) {
+            const fileObj = {
+              id: fileId,
+              name: data.filename,
+              size: data.size,
+              text: data.text,
+              charCount: data.char_count
+            };
+            attachedFiles.push(fileObj);
+            renderAttachedFileItem(fileObj);
+          } else {
+            placeholder.innerHTML = `
+              <div class="attached-file-info">
+                <span class="attached-file-name" style="color:var(--block-color);">${escapeHtml(file.name)}</span>
+                <span style="font-size:0.75rem; color:var(--block-color);">${escapeHtml(data.error || "Upload failed")}</span>
+              </div>
+              <button class="btn-file-action btn-file-danger" onclick="removeAttachedFile('${fileId}')">Remove</button>
+            `;
+          }
+        } catch (err) {
+          placeholder.innerHTML = `
+            <div class="attached-file-info">
+              <span class="attached-file-name" style="color:var(--block-color);">${escapeHtml(file.name)}</span>
+              <span style="font-size:0.75rem; color:var(--block-color);">Error reading file</span>
+            </div>
+            <button class="btn-file-action btn-file-danger" onclick="removeAttachedFile('${fileId}')">Remove</button>
+          `;
+        }
+      }
+    }
+
+    function renderAttachedFileItem(fileObj) {
+      const el = document.getElementById(fileObj.id);
+      if (!el) return;
+      el.className = "attached-file-item";
+      el.innerHTML = `
+        <div class="attached-file-info">
+          <div>
+            <span class="attached-file-name">${escapeHtml(fileObj.name)}</span>
+            <span class="attached-file-size">(${formatBytes(fileObj.size)} &bull; ${fileObj.charCount} chars)</span>
+          </div>
+        </div>
+        <div class="attached-file-actions">
+          <button type="button" class="btn-file-action" onclick="insertFileIntoPrompt('${fileObj.id}')" title="Insert file content into the User Prompt box">
+            Insert to Prompt
+          </button>
+          <button type="button" class="btn-file-action btn-file-danger" onclick="removeAttachedFile('${fileObj.id}')">
+            Remove
+          </button>
+        </div>
+      `;
+    }
+
+    function removeAttachedFile(fileId) {
+      attachedFiles = attachedFiles.filter(f => f.id !== fileId);
+      const el = document.getElementById(fileId);
+      if (el) el.remove();
+      if (attachedFiles.length === 0) {
+        document.getElementById("attached-files-container").style.display = "none";
+      }
+    }
+
+    function insertFileIntoPrompt(fileId) {
+      const fileObj = attachedFiles.find(f => f.id === fileId);
+      if (!fileObj) return;
+      const promptInput = document.getElementById("prompt-input");
+      if (promptInput.value.trim()) {
+        promptInput.value += "\n\n" + fileObj.text;
+      } else {
+        promptInput.value = fileObj.text;
+      }
     }
 
     function switchPage(pageId, tabElement) {
@@ -1646,11 +1911,26 @@
     }
 
     async function submitPrompt() {
-      const prompt = document.getElementById("prompt-input").value.trim();
+      let prompt = document.getElementById("prompt-input").value.trim();
       const ctx = document.getElementById("context-input").value.trim();
       const model = document.getElementById("ollama-model-select")?.value || "";
       const submitBtn = document.getElementById("submit-prompt-btn");
-      if (!prompt) return;
+
+      // Collect context from manual textarea and any attached files
+      const contextList = [];
+      if (ctx) contextList.push(ctx);
+      attachedFiles.forEach(f => {
+        contextList.push(`[Attached Document: ${f.name}]\n${f.text}`);
+      });
+
+      if (!prompt && contextList.length === 0) {
+        alert("Please enter a user prompt or attach at least one document to inspect.");
+        return;
+      }
+      if (!prompt && contextList.length > 0) {
+        prompt = "Analyze and summarize the attached document content.";
+        document.getElementById("prompt-input").value = prompt;
+      }
 
       if (submitBtn) {
         submitBtn.disabled = true;
@@ -1662,7 +1942,7 @@
         const res = await fetch("/v1/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, context: ctx ? [ctx] : [], model })
+          body: JSON.stringify({ prompt, context: contextList, model })
         });
         const data = await res.json();
         renderDetail(data);
@@ -1917,8 +2197,21 @@
     }
 
     async function runUnprotectedComparison() {
-      const rawPrompt = (lastSelectedItem && lastSelectedItem.raw) || document.getElementById("prompt-input").value.trim();
-      if (!rawPrompt) return;
+      let rawPrompt = (lastSelectedItem && lastSelectedItem.raw) || document.getElementById("prompt-input").value.trim();
+      const contextList = [];
+      const ctx = document.getElementById("context-input").value.trim();
+      if (ctx) contextList.push(ctx);
+      attachedFiles.forEach(f => {
+        contextList.push(`[Attached Document: ${f.name}]\n${f.text}`);
+      });
+      if (!rawPrompt && contextList.length > 0) {
+        rawPrompt = "Analyze and summarize the attached document content.";
+      }
+      if (!rawPrompt && contextList.length === 0) return;
+      if (contextList.length > 0 && !rawPrompt.includes("[Attached Document:")) {
+        rawPrompt += "\n\n" + contextList.join("\n\n");
+      }
+
       const model = document.getElementById("ollama-model-select")?.value || "";
       const wrap = document.getElementById("ollama-unprotected-wrap");
       const out = document.getElementById("ollama-unprotected");
