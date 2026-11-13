@@ -212,11 +212,13 @@
       border: 1px solid var(--border-secondary);
       border-radius: var(--radius-md);
       padding: 16px 20px;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      cursor: pointer;
     }
 
     .metric-card:hover {
       transform: translateY(-2px);
+      border-color: var(--accent-primary);
     }
 
     .metric-label {
@@ -225,14 +227,56 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-secondary);
-      margin-bottom: 4px;
+      margin-bottom: 8px;
     }
 
-    .metric-value {
-      font-size: 1.65rem;
-      font-weight: 800;
-      color: var(--text-main);
-      letter-spacing: -0.02em;
+    /* From Uiverse.io by satyamchaudharydev */ 
+    /* === removing default button style ===*/
+    .button {
+      margin: 0;
+      height: auto;
+      background: transparent;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* button styling */
+    .button {
+      --border-right: 6px;
+      --text-stroke-color: rgba(255,255,255,0.6);
+      --animation-color: #37FF8B;
+      --fs-size: 2em;
+      letter-spacing: 3px;
+      text-decoration: none;
+      font-size: var(--fs-size);
+      font-family: "Arial";
+      position: relative;
+      text-transform: uppercase;
+      color: transparent;
+      -webkit-text-stroke: 1px var(--text-stroke-color);
+      white-space: nowrap;
+      display: inline-block;
+    }
+    /* this is the text, when you hover on button */
+    .hover-text {
+      position: absolute;
+      box-sizing: border-box;
+      content: attr(data-text);
+      color: var(--animation-color);
+      width: 0%;
+      inset: 0;
+      border-right: var(--border-right) solid var(--animation-color);
+      overflow: hidden;
+      transition: 0.5s;
+      -webkit-text-stroke: 1px var(--animation-color);
+      white-space: nowrap;
+    }
+    /* hover */
+    .button:hover .hover-text,
+    .metric-card:hover .button .hover-text {
+      width: 100%;
+      filter: drop-shadow(0 0 23px var(--animation-color));
     }
 
     /* Designer Buttons (10% Accent & Secondary Variants) */
@@ -923,23 +967,38 @@
     <section class="metrics-grid">
       <div class="metric-card">
         <div class="metric-label">Prompts Evaluated</div>
-        <div class="metric-value" id="st-total">0</div>
+        <button class="button" id="st-total-btn" data-text="&nbsp;0&nbsp;">
+          <span class="actual-text" id="st-total">&nbsp;0&nbsp;</span>
+          <span aria-hidden="true" class="hover-text" id="st-total-hover">&nbsp;0&nbsp;</span>
+        </button>
       </div>
       <div class="metric-card">
         <div class="metric-label">Approved (Clean)</div>
-        <div class="metric-value" style="color: var(--pass-color);" id="st-passed">0</div>
+        <button class="button" id="st-passed-btn" data-text="&nbsp;0&nbsp;">
+          <span class="actual-text" id="st-passed">&nbsp;0&nbsp;</span>
+          <span aria-hidden="true" class="hover-text" id="st-passed-hover">&nbsp;0&nbsp;</span>
+        </button>
       </div>
       <div class="metric-card">
         <div class="metric-label">Sanitized Spans</div>
-        <div class="metric-value" style="color: var(--warn-color);" id="st-sanitized">0</div>
+        <button class="button" id="st-sanitized-btn" data-text="&nbsp;0&nbsp;">
+          <span class="actual-text" id="st-sanitized">&nbsp;0&nbsp;</span>
+          <span aria-hidden="true" class="hover-text" id="st-sanitized-hover">&nbsp;0&nbsp;</span>
+        </button>
       </div>
       <div class="metric-card">
         <div class="metric-label">Blocked Attacks</div>
-        <div class="metric-value" style="color: var(--block-color);" id="st-blocked">0</div>
+        <button class="button" id="st-blocked-btn" data-text="&nbsp;0&nbsp;">
+          <span class="actual-text" id="st-blocked">&nbsp;0&nbsp;</span>
+          <span aria-hidden="true" class="hover-text" id="st-blocked-hover">&nbsp;0&nbsp;</span>
+        </button>
       </div>
       <div class="metric-card">
         <div class="metric-label">Mean Gate Latency</div>
-        <div class="metric-value" id="st-lat">0.0 ms</div>
+        <button class="button" id="st-lat-btn" data-text="&nbsp;0.0 ms&nbsp;">
+          <span class="actual-text" id="st-lat">&nbsp;0.0 ms&nbsp;</span>
+          <span aria-hidden="true" class="hover-text" id="st-lat-hover">&nbsp;0.0 ms&nbsp;</span>
+        </button>
       </div>
     </section>
 
@@ -1343,15 +1402,25 @@
       }
     }
 
+    function setMetricButtonValue(id, val) {
+      const formatted = `\u00A0${val}\u00A0`;
+      const actual = document.getElementById(id);
+      const hover = document.getElementById(id + "-hover");
+      const btn = document.getElementById(id + "-btn");
+      if (actual) actual.textContent = formatted;
+      if (hover) hover.textContent = formatted;
+      if (btn) btn.setAttribute("data-text", formatted);
+    }
+
     async function loadStats() {
       try {
         const res = await fetch("/api/stats");
         const st = await res.json();
-        document.getElementById("st-total").textContent = st.total;
-        document.getElementById("st-passed").textContent = st.passed;
-        document.getElementById("st-sanitized").textContent = st.sanitized;
-        document.getElementById("st-blocked").textContent = st.blocked;
-        document.getElementById("st-lat").textContent = (st.avg_latency_ms || 0) + " ms";
+        setMetricButtonValue("st-total", st.total);
+        setMetricButtonValue("st-passed", st.passed);
+        setMetricButtonValue("st-sanitized", st.sanitized);
+        setMetricButtonValue("st-blocked", st.blocked);
+        setMetricButtonValue("st-lat", (st.avg_latency_ms || 0) + "\u00A0ms");
 
         const auditBadge = document.getElementById("nav-audit-count");
         if (auditBadge) auditBadge.textContent = st.total;
