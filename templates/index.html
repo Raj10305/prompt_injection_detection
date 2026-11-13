@@ -54,10 +54,10 @@
       --block-bg: #FEF2F2;
       --block-border: #FECACA;
 
-      --radius-sm: 8px;
-      --radius-md: 14px;
-      --radius-lg: 20px;
-      --radius-pill: 9999px;
+      --radius-sm: 0px;
+      --radius-md: 0px;
+      --radius-lg: 0px;
+      --radius-pill: 0px;
 
       --shadow-sm: 0 2px 10px rgba(17, 24, 39, 0.04);
       --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.07);
@@ -923,6 +923,108 @@
       from { opacity: 0; transform: translateY(3px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Loading Spinner (Custom 10-Blade Radial Spinner) */
+    .loading-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .spinner-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .spinner {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+    }
+
+    .spinner div {
+      position: absolute;
+      width: 50%;
+      height: 150%;
+      background: #000000;
+      transform: rotate(calc(var(--rotation) * 1deg)) translate(0, calc(var(--translation) * 1%));
+      animation: spinner-fzua35 1s calc(var(--delay) * 1s) infinite ease;
+    }
+
+    .spinner div:nth-child(1) {
+      --delay: 0.1;
+      --rotation: 36;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(2) {
+      --delay: 0.2;
+      --rotation: 72;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(3) {
+      --delay: 0.3;
+      --rotation: 108;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(4) {
+      --delay: 0.4;
+      --rotation: 144;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(5) {
+      --delay: 0.5;
+      --rotation: 180;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(6) {
+      --delay: 0.6;
+      --rotation: 216;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(7) {
+      --delay: 0.7;
+      --rotation: 252;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(8) {
+      --delay: 0.8;
+      --rotation: 288;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(9) {
+      --delay: 0.9;
+      --rotation: 324;
+      --translation: 150;
+    }
+
+    .spinner div:nth-child(10) {
+      --delay: 1;
+      --rotation: 360;
+      --translation: 150;
+    }
+
+    @keyframes spinner-fzua35 {
+      0%, 10%, 20%, 30%, 50%, 60%, 70%, 80%, 90%, 100% {
+        transform: rotate(calc(var(--rotation) * 1deg)) translate(0, calc(var(--translation) * 1%));
+      }
+
+      50% {
+        transform: rotate(calc(var(--rotation) * 1deg)) translate(0, calc(var(--translation) * 1.5%));
+      }
+    }
   </style>
 </head>
 <body>
@@ -1386,6 +1488,19 @@
   <script>
     let lastSelectedItem = null;
 
+    const SPINNER_MARKUP = `
+      <span class="spinner-wrap">
+        <div class="spinner">
+          <div></div><div></div><div></div><div></div><div></div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+      </span>
+    `;
+
+    function renderLoadingWithSpinner(text) {
+      return `<div class="loading-inline">${SPINNER_MARKUP}<span>${text}</span></div>`;
+    }
+
     function switchPage(pageId, tabElement) {
       document.querySelectorAll(".page-view").forEach(p => p.classList.remove("active"));
       document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
@@ -1495,7 +1610,7 @@
     async function loadKaggleSample(category) {
       const banner = document.getElementById("kaggle-meta-banner");
       banner.style.display = "block";
-      banner.textContent = "Loading benchmark sample from dataset...";
+      banner.innerHTML = renderLoadingWithSpinner("Loading benchmark sample from dataset...");
       try {
         const res = await fetch(`/api/dataset/random?type=${encodeURIComponent(category)}`);
         const item = await res.json();
@@ -1564,8 +1679,12 @@
     }
 
     async function retrainModel() {
-      const btn = event?.target;
-      if (btn) btn.disabled = true;
+      const btn = event?.currentTarget || event?.target;
+      const origHtml = btn ? btn.innerHTML : "Retrain Model";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = renderLoadingWithSpinner("Retraining...");
+      }
       try {
         const res = await fetch("/api/retrain", { method: "POST" });
         const r = await res.json();
@@ -1575,7 +1694,10 @@
           alert(`Retraining error: ${r.error}`);
         }
       } finally {
-        if (btn) btn.disabled = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
         await loadStats();
       }
     }
@@ -1691,6 +1813,7 @@
     async function refreshOllama() {
       const sel = document.getElementById("ollama-model-select");
       const banner = document.getElementById("ollama-conn-banner");
+      banner.innerHTML = renderLoadingWithSpinner("Checking local Ollama connection...");
       try {
         const res = await fetch("/api/ollama/status");
         const st = await res.json();
@@ -1786,7 +1909,7 @@
       const meta = document.getElementById("ollama-unprotected-meta");
       const btn = document.getElementById("compare-btn");
       wrap.style.display = "block";
-      out.textContent = "Forwarding raw prompt directly to Ollama (guardrail bypassed)...";
+      out.innerHTML = renderLoadingWithSpinner("Forwarding raw prompt directly to Ollama (guardrail bypassed)...");
       meta.textContent = "";
       btn.disabled = true;
       try {
@@ -1812,15 +1935,20 @@
       const ansBox = document.getElementById("ollama-answered-box");
       const ansText = document.getElementById("ollama-answered-text");
       const ansBadge = document.getElementById("ollama-answered-badge");
+      const detail = document.getElementById("detail-content");
 
       ansBox.className = "answered-status-box";
       ansText.style.color = "var(--text-secondary)";
-      ansText.textContent = "Evaluating prompt and querying Ollama...";
+      ansText.innerHTML = renderLoadingWithSpinner("Evaluating prompt and querying Ollama...");
       ansBadge.className = "badge";
       ansBadge.textContent = "PROCESSING";
 
+      if (detail) {
+        detail.innerHTML = renderLoadingWithSpinner("Running 5-tier guardrail inspection...");
+      }
+
       out.className = "output-box";
-      out.textContent = "Inspecting prompt through 5-tier guardrail, then waiting for Ollama...";
+      out.innerHTML = renderLoadingWithSpinner("Inspecting prompt through 5-tier guardrail, then waiting for Ollama...");
       document.getElementById("ollama-meta").textContent = "";
       document.getElementById("ollama-unprotected-wrap").style.display = "none";
     }
