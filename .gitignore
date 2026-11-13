@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large dataset files (Hugging Face / combined generated artifacts > 100MB)
+data/*.csv
+data/*.parquet
+data/guychuk_dataset.*
+data/combined_dataset.*
+
+# Keep the lightweight Kaggle benchmark dataset
+!data/Prompt_INJECTION_And_Benign_DATASET.jsonl
+
+# Logs and temporary files
+*.log
+RULES.md
+

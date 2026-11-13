@@ -1,0 +1,31 @@
+{
+  "dataset": "combined_dataset.jsonl",
+  "total_samples": 15009,
+  "test_samples": 3002,
+  "saved_to_dataset": 0,
+  "accuracy": 98.6,
+  "precision": 98.73,
+  "recall": 97.74,
+  "f1": 98.23,
+  "auc_roc": 0.9967,
+  "optimal_w": 0.35,
+  "avg_inference_ms": 2.46,
+  "per_attack_recall": {
+    "code_execution": "25/25 (100.0%)",
+    "data_leakage": "1/1 (100.0%)",
+    "jailbreaking": "442/469 (94.2%)",
+    "obfuscation": "13/13 (100.0%)",
+    "role_playing": "685/685 (100.0%)"
+  },
+  "confusion_matrix": [
+    [
+      1794,
+      15
+    ],
+    [
+      27,
+      1166
+    ]
+  ],
+  "timestamp": "2026-11-13 12:38:54"
+}

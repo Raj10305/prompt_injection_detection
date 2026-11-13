@@ -45,6 +45,8 @@ class InferenceEngine:
                 with open("models/calibration.json", "r", encoding="utf-8") as cf:
                     cal = json.load(cf)
                     self.w = float(cal.get("w", self.w))
+                    self.t_lo = float(cal.get("t_lo", self.t_lo))
+                    self.t_hi = float(cal.get("t_hi", self.t_hi))
             except Exception:
                 pass
         self.sess = None

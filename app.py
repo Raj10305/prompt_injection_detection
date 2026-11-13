@@ -40,8 +40,8 @@ except ImportError:
 
 app = Flask(__name__)
 
-# Load Kaggle dataset records into memory for the live Dataset Explorer button
-_, _, _, KAGGLE_RECORDS = load_jsonl_dataset()
+# Load dataset records into memory for the live Dataset Explorer buttons
+_, _, _, KAGGLE_RECORDS = load_jsonl_dataset(ui_only=True)
 
 # Auto-train initial models on the Kaggle dataset if models/ directory is empty
 if not (
@@ -106,7 +106,10 @@ def compute_top_shap(feats: np.ndarray, k: int = 6) -> list:
 def run_pipeline(prompt: str, context: list = None, meta: dict = None, call_llm: bool = True) -> dict:
     """Execute Tiers 2 through 5 synchronously, query the offline LLM, and log the audit record."""
     t_start = time.perf_counter()
-    context = context or []
+    if isinstance(context, str):
+        context = [context]
+    else:
+        context = context or []
     meta = meta or {}
     task_id = str(uuid.uuid4())
     raw = "\n".join([prompt, *context]) if context else prompt
@@ -127,7 +130,7 @@ def run_pipeline(prompt: str, context: list = None, meta: dict = None, call_llm:
     # Tier 5: Multi-Stage Sanitization Engine (Strip -> Rewrite -> Re-score)
     if initial_action == "SANITIZE":
         out_prompt = sanitize(clean)
-        clean_after, hits_after, _ = normalize(out_prompt)
+        clean_after, hits_after, _ = normalize(out_prompt, detect_lang=False)
         feats_after = extract(clean_after, hits_after)
         res2 = ENGINE.predict(clean_after, feats_after)
         if res2["p"] < ENGINE.t_lo:
@@ -227,6 +230,23 @@ def ollama_direct():
     return jsonify(query_ollama_direct(prompt))
 
 
+@app.get("/api/system-prompt")
+def system_prompt_get():
+    """Retrieve the current system prompt configured for Ollama."""
+    from llm_backend import get_system_prompt
+    return jsonify(system_prompt=get_system_prompt())
+
+
+@app.post("/api/system-prompt")
+def system_prompt_set():
+    """Dynamically set or clear the system prompt."""
+    from llm_backend import set_system_prompt
+    body = request.get_json(silent=True) or {}
+    new_prompt = body.get("system_prompt", "")
+    set_system_prompt(new_prompt)
+    return jsonify(ok=True, system_prompt=new_prompt)
+
+
 @app.get("/api/dataset/random")
 def random_dataset_sample():
     """Return a random entry from Prompt_INJECTION_And_Benign_DATASET.jsonl."""
@@ -277,6 +297,8 @@ def get_audit():
 def label_audit(task_id):
     body = request.get_json(silent=True) or {}
     label = body.get("label")
+    if label not in ("attack", "benign"):
+        return jsonify(error="label must be 'attack' or 'benign'"), 400
     for rec in AUDIT_LOGS:
         if rec["task_id"] == task_id:
             rec["label"] = label
@@ -287,16 +309,22 @@ def label_audit(task_id):
 @app.post("/api/retrain")
 def retrain_models():
     """Online Active Learning: Retrain ensemble on Kaggle dataset + analyst feedback."""
-    global ENGINE, EXPLAINER
-    labeled = [r for r in AUDIT_LOGS if r.get("label") in ("attack", "benign")]
-    metrics = build_and_train(extra_samples=labeled)
-    ENGINE = InferenceEngine(w=metrics.get("optimal_w", 0.5))
-    if shap is not None and ENGINE.booster is not None:
-        try:
-            EXPLAINER = shap.TreeExplainer(ENGINE.booster)
-        except Exception:
-            EXPLAINER = None
-    return jsonify(ok=True, labeled_used=len(labeled), metrics=metrics)
+    global ENGINE, EXPLAINER, KAGGLE_RECORDS
+    try:
+        labeled = [r for r in AUDIT_LOGS if r.get("label") in ("attack", "benign")]
+        metrics = build_and_train(extra_samples=labeled)
+        _, _, _, KAGGLE_RECORDS = load_jsonl_dataset(ui_only=True)
+        ENGINE = InferenceEngine(w=metrics.get("optimal_w", 0.5))
+        if shap is not None and ENGINE.booster is not None:
+            try:
+                EXPLAINER = shap.TreeExplainer(ENGINE.booster)
+            except Exception:
+                EXPLAINER = None
+        return jsonify(ok=True, labeled_used=len(labeled), metrics=metrics)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify(ok=False, error=str(exc)), 500
 
 
 @app.get("/api/stats")
@@ -311,6 +339,7 @@ def get_stats():
         if total > 0
         else 0.0
     )
+    models = get_installed_ollama_models()
     return jsonify({
         "total": total,
         "blocked": blocked,
@@ -318,8 +347,8 @@ def get_stats():
         "passed": passed,
         "labeled": labeled,
         "dataset_size": len(KAGGLE_RECORDS),
-        "ollama_model": select_ollama_model(),
-        "ollama_models": get_installed_ollama_models(),
+        "ollama_model": select_ollama_model(installed=models),
+        "ollama_models": models,
         "avg_latency_ms": avg_lat,
         "queue": 0,
     })

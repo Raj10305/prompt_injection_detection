@@ -223,11 +223,12 @@ def _fallback_semantic_embedding(text: str, dim: int = 384) -> np.ndarray:
     used when all-MiniLM-L6-v2 is not downloaded locally.
     """
     vec = np.zeros(dim, dtype=np.float32)
-    low = text.lower()
-    words = WORD_RE.findall(low)
+    low = text[:1024].lower()
+    words = WORD_RE.findall(low)[:256]
     tokens = list(words)
     tokens.extend(f"{words[i]}_{words[i+1]}" for i in range(len(words) - 1))
-    tokens.extend(low[i:i+4] for i in range(max(0, len(low) - 3)))
+    low_char = low[:512]
+    tokens.extend(low_char[i:i+4] for i in range(max(0, len(low_char) - 3)))
 
     for tok in tokens:
         h = int(hashlib.md5(tok.encode("utf-8")).hexdigest()[:8], 16)
@@ -244,33 +245,73 @@ def _fallback_semantic_embedding(text: str, dim: int = 384) -> np.ndarray:
 def semantic_embedding(text: str) -> np.ndarray:
     """Return 384-dimensional normalized sentence embedding."""
     if EMBED is not None:
-        vec = EMBED.encode(text, normalize_embeddings=True)
+        vec = EMBED.encode(text[:1024], normalize_embeddings=True, show_progress_bar=False)
         return np.asarray(vec, dtype=np.float32)
     return _fallback_semantic_embedding(text, dim=384)
 
 
-def extract(text: str, homoglyph_hits: int = 0) -> np.ndarray:
+def extract(text: str, homoglyph_hits: int = 0, use_spacy: bool = True) -> np.ndarray:
     """Return the full 393-dimensional feature vector for one prompt."""
-    doc = NLP(text) if NLP is not None else None
-    p_ratio, p_runs = punctuation_anomaly(text)
+    work_text = text[:2048]
+    doc = NLP(work_text) if (use_spacy and NLP is not None) else None
+    p_ratio, p_runs = punctuation_anomaly(work_text)
     lexical = [
-        verb_density(doc, text),
-        imperative_ratio(doc, text),
-        trigger_count(text),
+        verb_density(doc, work_text),
+        imperative_ratio(doc, work_text),
+        trigger_count(work_text),
         p_ratio,
         p_runs,
     ]
     structural = [
-        delimiter_abuse(text),
-        nesting_depth(text),
+        delimiter_abuse(work_text),
+        nesting_depth(work_text),
         float(homoglyph_hits),
         float(len(text)),
     ]
-    semantic = semantic_embedding(text)
+    semantic = semantic_embedding(work_text)
     return np.concatenate([
         np.array(lexical + structural, dtype=np.float32),
         semantic.astype(np.float32),
     ])
+
+
+def extract_batch(texts: list, hits_list: list) -> np.ndarray:
+    """
+    Fast batch feature extraction for training on large datasets.
+    Uses batched SentenceTransformer encoding if available, and fast regex/lexical extraction.
+    """
+    n = len(texts)
+    handcrafted = np.zeros((n, 9), dtype=np.float32)
+    work_texts = []
+
+    for i, (text, hits) in enumerate(zip(texts, hits_list)):
+        work_text = text[:2048]
+        work_texts.append(work_text[:1024])
+        p_ratio, p_runs = punctuation_anomaly(work_text)
+        handcrafted[i, 0] = verb_density(None, work_text)
+        handcrafted[i, 1] = imperative_ratio(None, work_text)
+        handcrafted[i, 2] = trigger_count(work_text)
+        handcrafted[i, 3] = p_ratio
+        handcrafted[i, 4] = p_runs
+        handcrafted[i, 5] = delimiter_abuse(work_text)
+        handcrafted[i, 6] = nesting_depth(work_text)
+        handcrafted[i, 7] = float(hits)
+        handcrafted[i, 8] = float(len(text))
+
+    if EMBED is not None and n > 0:
+        sem_matrix = EMBED.encode(
+            work_texts,
+            batch_size=128,
+            normalize_embeddings=True,
+            show_progress_bar=True,
+        )
+        sem_matrix = np.asarray(sem_matrix, dtype=np.float32)
+    else:
+        sem_matrix = np.zeros((n, 384), dtype=np.float32)
+        for i, wt in enumerate(work_texts):
+            sem_matrix[i] = _fallback_semantic_embedding(wt, dim=384)
+
+    return np.hstack([handcrafted, sem_matrix])
 
 
 def extract_summary(text: str, homoglyph_hits: int = 0) -> dict:

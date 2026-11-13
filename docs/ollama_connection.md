@@ -16,7 +16,7 @@ If `ollama` is not recognized, add the directory containing `ollama.exe` to your
 ```cmd
 > ollama list          :: Shows installed model names, e.g. "llama3.1:8b"
 ```
-Set an environment variable so the SentinelLLM app knows which model to query:
+Set an environment variable so the guardrail app knows which model to query:
 ```cmd
 > set OLLAMA_MODEL=llama3.1:8b   :: replace with the model name you saw above
 ```
@@ -30,7 +30,7 @@ You can also change the model later from the web UI dropdown – the variable is
 You should see a short text response printed in the console.
 
 ---
-## 4. Prepare the SentinelLLM project
+## 4. Prepare the project
 ```cmd
 > cd C:\Users\Raj\.gemini\antigravity\scratch\prompt-injection-detector
 > python -m venv venv
@@ -40,7 +40,7 @@ You should see a short text response printed in the console.
 If you already have a virtual environment active, you can skip the `venv` steps.
 
 ---
-## 5. Run the SentinelLLM server
+## 5. Run the server
 ```cmd
 > python app.py
 ```

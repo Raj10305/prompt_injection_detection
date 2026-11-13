@@ -54,7 +54,7 @@ HOMOGLYPH_MAP = {
 }
 
 
-def normalize(text: str):
+def normalize(text: str, detect_lang: bool = True):
     """
     Normalize input prompt against character-level obfuscation.
 
@@ -91,10 +91,10 @@ def normalize(text: str):
 
     # 4. Language detection
     lang = "en"
-    if detect is not None and len(normalized) >= 5:
+    if detect_lang and detect is not None and len(normalized) >= 5:
         try:
             lang = detect(normalized)
-        except LangDetectException:
+        except Exception:
             lang = "en"
 
     return normalized, homoglyph_hits, lang

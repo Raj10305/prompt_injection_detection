@@ -36,7 +36,7 @@ def strip_malicious_spans(text: str) -> str:
 
     # 3. Remove any remaining standalone trigger phrases
     for trig in TRIGGERS:
-        cleaned = re.sub(re.escape(trig), "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(re.escape(trig), " ", cleaned, flags=re.IGNORECASE)
 
     # 4. Strip adversarial punctuation runs (e.g., '== ! _ _ : !!! ???')
     cleaned = PUNCT_RUN_RE.sub("", cleaned)
