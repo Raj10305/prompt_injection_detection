@@ -924,27 +924,38 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Loading Spinner (Custom 10-Blade Radial Spinner) */
+    /* Loading Spinner (Custom 10-Blade Radial Spinner - Compact & Centered) */
     .loading-inline {
       display: inline-flex;
       align-items: center;
-      gap: 14px;
+      justify-content: center;
+      gap: 8px;
+      white-space: normal;
+      line-height: 1.4;
+      vertical-align: middle;
     }
 
     .spinner-wrap {
       position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
+      display: inline-block;
+      width: 16px;
+      height: 16px;
       flex-shrink: 0;
+      vertical-align: middle;
     }
 
     .spinner {
       position: absolute;
       width: 9px;
       height: 9px;
+      left: calc(50% - 2.25px);
+      top: calc(50% - 6.75px);
+      transform: scale(0.32);
+      transform-origin: 2.25px 6.75px;
+    }
+
+    .btn-primary .spinner div {
+      background: #FFFFFF;
     }
 
     .spinner div {
@@ -1141,7 +1152,7 @@
           </label>
           <textarea id="context-input" rows="3" placeholder="Paste optional external context to scan for indirect injections..."></textarea>
 
-          <button class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.94rem; margin-top: auto;" onclick="submitPrompt()">
+          <button id="submit-prompt-btn" class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.94rem; margin-top: auto;" onclick="submitPrompt()">
             Inspect Prompt &amp; Query Ollama
           </button>
         </div>
@@ -1488,17 +1499,10 @@
   <script>
     let lastSelectedItem = null;
 
-    const SPINNER_MARKUP = `
-      <span class="spinner-wrap">
-        <div class="spinner">
-          <div></div><div></div><div></div><div></div><div></div>
-          <div></div><div></div><div></div><div></div><div></div>
-        </div>
-      </span>
-    `;
+    const SPINNER_MARKUP = `<span class="spinner-wrap"><div class="spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></span>`;
 
     function renderLoadingWithSpinner(text) {
-      return `<div class="loading-inline">${SPINNER_MARKUP}<span>${text}</span></div>`;
+      return `<span class="loading-inline">${SPINNER_MARKUP}<span>${text}</span></span>`;
     }
 
     function switchPage(pageId, tabElement) {
@@ -1645,19 +1649,31 @@
       const prompt = document.getElementById("prompt-input").value.trim();
       const ctx = document.getElementById("context-input").value.trim();
       const model = document.getElementById("ollama-model-select")?.value || "";
+      const submitBtn = document.getElementById("submit-prompt-btn");
       if (!prompt) return;
 
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = renderLoadingWithSpinner("Inspecting &amp; Querying Ollama...");
+      }
       setOllamaLoading();
 
-      const res = await fetch("/v1/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, context: ctx ? [ctx] : [], model })
-      });
-      const data = await res.json();
-      renderDetail(data);
-      await loadStats();
-      await loadAudit();
+      try {
+        const res = await fetch("/v1/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, context: ctx ? [ctx] : [], model })
+        });
+        const data = await res.json();
+        renderDetail(data);
+        await loadStats();
+        await loadAudit();
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = "Inspect Prompt &amp; Query Ollama";
+        }
+      }
     }
 
     async function labelRecord(taskId, label) {
@@ -1912,6 +1928,7 @@
       out.innerHTML = renderLoadingWithSpinner("Forwarding raw prompt directly to Ollama (guardrail bypassed)...");
       meta.textContent = "";
       btn.disabled = true;
+      btn.innerHTML = renderLoadingWithSpinner("Querying Ollama...");
       try {
         const res = await fetch("/api/ollama/direct", {
           method: "POST",
@@ -1927,6 +1944,7 @@
         }
       } finally {
         btn.disabled = false;
+        btn.innerHTML = "Run Unprotected Bypass";
       }
     }
 
@@ -1935,17 +1953,12 @@
       const ansBox = document.getElementById("ollama-answered-box");
       const ansText = document.getElementById("ollama-answered-text");
       const ansBadge = document.getElementById("ollama-answered-badge");
-      const detail = document.getElementById("detail-content");
 
       ansBox.className = "answered-status-box";
       ansText.style.color = "var(--text-secondary)";
-      ansText.innerHTML = renderLoadingWithSpinner("Evaluating prompt and querying Ollama...");
+      ansText.textContent = "Evaluating prompt and querying Ollama...";
       ansBadge.className = "badge";
       ansBadge.textContent = "PROCESSING";
-
-      if (detail) {
-        detail.innerHTML = renderLoadingWithSpinner("Running 5-tier guardrail inspection...");
-      }
 
       out.className = "output-box";
       out.innerHTML = renderLoadingWithSpinner("Inspecting prompt through 5-tier guardrail, then waiting for Ollama...");
