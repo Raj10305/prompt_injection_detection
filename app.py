@@ -105,7 +105,7 @@ def compute_top_shap(feats: np.ndarray, k: int = 6) -> list:
     return items[:k]
 
 
-def run_pipeline(prompt: str, context: list = None, meta: dict = None, call_llm: bool = True) -> dict:
+def run_pipeline(prompt: str, context: list = None, meta: dict = None, call_llm: bool = True, model: str = None) -> dict:
     """Execute Tiers 2 through 5 synchronously, query the offline LLM, and log the audit record."""
     t_start = time.perf_counter()
     if isinstance(context, str):
@@ -148,7 +148,7 @@ def run_pipeline(prompt: str, context: list = None, meta: dict = None, call_llm:
 
     # Middleware latency is measured BEFORE the LLM call so it reflects detection cost only
     if call_llm:
-        llm_out = generate_llm_response(out_prompt, final_action)
+        llm_out = generate_llm_response(out_prompt, final_action, model=model)
     else:
         llm_out = {
             "llm_invoked": False,
@@ -227,9 +227,12 @@ def ollama_direct():
     """
     body = request.get_json(silent=True) or {}
     prompt = str(body.get("prompt", "")).strip()
+    model = str(body.get("model", "")).strip() or None
+    if model:
+        set_active_model(model)
     if not prompt:
         return jsonify(error="prompt is required"), 400
-    return jsonify(query_ollama_direct(prompt))
+    return jsonify(query_ollama_direct(prompt, model=model))
 
 
 @app.get("/api/system-prompt")
@@ -270,9 +273,12 @@ def analyze():
     prompt = str(body.get("prompt", "")).strip()
     context = body.get("context", [])
     meta = body.get("meta", {})
+    model = str(body.get("model", "")).strip() or None
+    if model:
+        set_active_model(model)
     if not prompt:
         return jsonify(error="prompt is required"), 400
-    rec = run_pipeline(prompt, context, meta=meta)
+    rec = run_pipeline(prompt, context, meta=meta, model=model)
     return jsonify(rec), 200
 
 

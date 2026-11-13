@@ -66,8 +66,8 @@ def set_active_model(name: str) -> None:
 
 def select_ollama_model(installed: list = None) -> str:
     """
-    Return the active model. If none is chosen, auto-detect the first installed
-    llama model (or any installed model) so there is never a tag mismatch.
+    Return the active model. If none is chosen, auto-detect the most recently
+    installed model (installed[0] from Ollama /api/tags).
     """
     if installed is None:
         installed = get_installed_ollama_models()
@@ -75,18 +75,28 @@ def select_ollama_model(installed: list = None) -> str:
         return _active_model
     if not installed:
         return ""
-    for m in installed:
-        if "llama" in m.lower():
-            return m
     return installed[0]
+
+
+def _send_ollama_generate(payload: dict, timeout: float) -> dict:
+    """Helper to send POST request to /api/generate."""
+    req = urllib.request.Request(
+        OLLAMA_GENERATE_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 def query_ollama(user_prompt: str, model: str = None, timeout: float = None) -> dict:
     """
     Send a prompt to the local Ollama server.
+    Handles both standard models (Llama, Mistral) and thinking models (Qwen3.5, DeepSeek-R1).
     Returns {"ok", "response", "model", "error", "latency_ms", "eval_count"}.
     """
-    target_model = model or select_ollama_model()
+    target_model = (model or "").strip() or select_ollama_model()
     if not target_model:
         return {
             "ok": False,
@@ -100,29 +110,38 @@ def query_ollama(user_prompt: str, model: str = None, timeout: float = None) -> 
     payload = {
         "model": target_model,
         "prompt": user_prompt,
+        "think": False,
         "stream": False,
-        "options": {"temperature": 0.2, "num_predict": 200},
+        "options": {"temperature": 0.2, "num_predict": 400},
     }
     if SYSTEM_PROMPT:
         payload["system"] = SYSTEM_PROMPT
-    req = urllib.request.Request(
-        OLLAMA_GENERATE_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+
     t0 = time.perf_counter()
+    effective_timeout = timeout or OLLAMA_TIMEOUT
     try:
-        with urllib.request.urlopen(req, timeout=timeout or OLLAMA_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return {
-                "ok": True,
-                "response": data.get("response", "").strip(),
-                "model": target_model,
-                "error": None,
-                "latency_ms": round((time.perf_counter() - t0) * 1000.0, 1),
-                "eval_count": int(data.get("eval_count", 0) or 0),
-            }
+        try:
+            data = _send_ollama_generate(payload, effective_timeout)
+        except urllib.error.HTTPError as http_err:
+            # If an older Ollama version or model rejects 'think: False', retry without it
+            if http_err.code == 400:
+                payload.pop("think", None)
+                data = _send_ollama_generate(payload, effective_timeout)
+            else:
+                raise
+
+        text_out = (data.get("response") or "").strip()
+        if not text_out and data.get("thinking"):
+            text_out = (data.get("thinking") or "").strip()
+
+        return {
+            "ok": True,
+            "response": text_out,
+            "model": target_model,
+            "error": None,
+            "latency_ms": round((time.perf_counter() - t0) * 1000.0, 1),
+            "eval_count": int(data.get("eval_count", 0) or 0),
+        }
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="ignore")
         err = f"HTTP {e.code}: {detail or e.reason}"

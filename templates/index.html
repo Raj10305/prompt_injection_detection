@@ -1529,6 +1529,7 @@
     async function submitPrompt() {
       const prompt = document.getElementById("prompt-input").value.trim();
       const ctx = document.getElementById("context-input").value.trim();
+      const model = document.getElementById("ollama-model-select")?.value || "";
       if (!prompt) return;
 
       setOllamaLoading();
@@ -1536,7 +1537,7 @@
       const res = await fetch("/v1/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, context: ctx ? [ctx] : [] })
+        body: JSON.stringify({ prompt, context: ctx ? [ctx] : [], model })
       });
       const data = await res.json();
       renderDetail(data);
@@ -1777,7 +1778,9 @@
     }
 
     async function runUnprotectedComparison() {
-      if (!lastSelectedItem) return;
+      const rawPrompt = (lastSelectedItem && lastSelectedItem.raw) || document.getElementById("prompt-input").value.trim();
+      if (!rawPrompt) return;
+      const model = document.getElementById("ollama-model-select")?.value || "";
       const wrap = document.getElementById("ollama-unprotected-wrap");
       const out = document.getElementById("ollama-unprotected");
       const meta = document.getElementById("ollama-unprotected-meta");
@@ -1790,7 +1793,7 @@
         const res = await fetch("/api/ollama/direct", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: lastSelectedItem.raw })
+          body: JSON.stringify({ prompt: rawPrompt, model })
         });
         const r = await res.json();
         if (r.ok) {
