@@ -3,54 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prompt Injection Guardrail &bull; LLM Defense Middleware</title>
+  <title>Prompt Injection Guardrail</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Modern Deep Obsidian & Slate Theme */
-      --bg-base: #0B0F19;
-      --bg-surface: #111827;
-      --bg-card: #161F30;
-      --bg-card-hover: #1C273C;
-      --bg-input: #0E1422;
-      --bg-glass: rgba(22, 31, 48, 0.75);
+      /* =======================================================
+         60 - 30 - 10 COLOR RULE (LIGHT THEME FROM REFERENCE)
+         60% Dominant  : Clean Off-White & Pure White Surfaces
+         30% Secondary : Soft Periwinkle / Lavender Blue (#E6EAFF)
+         10% Accent    : Vibrant Violet-Indigo (#7C5CFC)
+         ======================================================= */
 
-      --border: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.16);
-      --border-accent: rgba(99, 102, 241, 0.35);
+      /* 60% Dominant Colors */
+      --bg-dominant: #F4F5F7;
+      --bg-card: #FFFFFF;
+      --bg-input: #F9FAFB;
 
-      --text-main: #F3F4F6;
-      --text-secondary: #94A3B8;
-      --text-muted: #64748B;
+      /* 30% Secondary Colors (Soft Lavender-Periwinkle Tint) */
+      --bg-secondary: #E6EAFF;
+      --bg-secondary-subtle: #F0F3FF;
+      --border-secondary: #D0D8FC;
 
-      /* Designer Brand & Semantic Accents */
-      --indigo-primary: #6366F1;
-      --indigo-hover: #4F46E5;
-      --cyan-accent: #06B6D4;
-      --purple-accent: #A855F7;
+      /* 10% Accent Colors (Vibrant Violet) */
+      --accent-primary: #7C5CFC;
+      --accent-hover: #6846F5;
+      --accent-soft: rgba(124, 92, 252, 0.12);
+      --accent-glow: 0 6px 20px rgba(124, 92, 252, 0.28);
 
-      --pass-color: #10B981;
-      --pass-bg: rgba(16, 185, 129, 0.12);
-      --pass-border: rgba(16, 185, 129, 0.3);
+      /* Borders & Dividers */
+      --border: #E5E7EB;
+      --border-strong: #D1D5DB;
 
-      --warn-color: #F59E0B;
-      --warn-bg: rgba(245, 158, 11, 0.12);
-      --warn-border: rgba(245, 158, 11, 0.3);
+      /* Typography Colors */
+      --text-main: #111827;
+      --text-secondary: #4B5563;
+      --text-muted: #6B7280;
 
-      --block-color: #EF4444;
-      --block-bg: rgba(239, 68, 68, 0.12);
-      --block-border: rgba(239, 68, 68, 0.3);
+      /* Semantic Status Colors (Light Theme Optimized) */
+      --pass-color: #059669;
+      --pass-bg: #ECFDF5;
+      --pass-border: #A7F3D0;
+
+      --warn-color: #D97706;
+      --warn-bg: #FFFBEB;
+      --warn-border: #FDE68A;
+
+      --block-color: #DC2626;
+      --block-bg: #FEF2F2;
+      --block-border: #FECACA;
 
       --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
       --radius-pill: 9999px;
 
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
-      --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.25);
+      --shadow-sm: 0 2px 10px rgba(17, 24, 39, 0.04);
+      --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.07);
     }
 
     * {
@@ -61,19 +71,15 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-base);
+      background-color: var(--bg-dominant);
       color: var(--text-main);
       line-height: 1.55;
       font-size: 14px;
       -webkit-font-smoothing: antialiased;
-      background-image: 
-        radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
-      background-attachment: fixed;
       min-height: 100vh;
     }
 
-    h1, h2, h3, .brand h1, .card-title, .metric-value, .benchmark-stat-val {
+    h1, h2, h3, .brand h1, .card-title, .metric-value, .benchmark-stat-val, .column-header-tag {
       font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -83,20 +89,19 @@
     }
 
     .container {
-      max-width: 1320px;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 24px 28px 60px;
+      padding: 24px 32px 60px;
     }
 
-    /* Top App Header */
+    /* Top App Header (Dominant White + Secondary Border) */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px 28px;
-      margin-bottom: 24px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(14px);
+      padding: 22px 30px;
+      margin-bottom: 20px;
+      background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-sm);
@@ -105,19 +110,11 @@
     }
 
     .brand h1 {
-      font-size: 2.1rem;
-      font-weight: 700;
+      font-size: 2.25rem;
+      font-weight: 800;
       letter-spacing: -0.03em;
-      color: #FFFFFF;
-      line-height: 1.2;
-    }
-
-    .brand p {
-      font-size: 0.92rem;
-      color: var(--text-secondary);
-      margin-top: 4px;
-      font-weight: 400;
-      letter-spacing: -0.01em;
+      color: var(--text-main);
+      line-height: 1.15;
     }
 
     .header-status-group {
@@ -131,53 +128,51 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 14px;
+      padding: 8px 16px;
       border-radius: var(--radius-pill);
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      font-size: 0.8rem;
-      color: var(--text-secondary);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
     }
 
     .dot {
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
-      background: #94A3B8;
-      transition: all 0.2s ease;
+      background: #9CA3AF;
     }
 
     .dot.online {
-      background: #10B981;
-      box-shadow: 0 0 10px #10B981;
+      background: var(--pass-color);
+      box-shadow: 0 0 8px rgba(5, 150, 105, 0.5);
     }
 
-    /* Modern Navigation Tabs */
+    /* Navigation Bar (30% Secondary Color Surface + 10% Accent Active Pill) */
     .nav-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(17, 24, 39, 0.8);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      padding: 6px;
+      gap: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-secondary);
+      padding: 7px;
       border-radius: var(--radius-pill);
       margin-bottom: 24px;
       overflow-x: auto;
-      box-shadow: var(--shadow-sm);
     }
 
     .nav-tab {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 20px;
+      padding: 10px 22px;
       border-radius: var(--radius-pill);
-      font-size: 0.85rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: var(--text-secondary);
       background: transparent;
-      border: 1px solid transparent;
+      border: none;
       cursor: pointer;
       transition: all 0.2s ease;
       white-space: nowrap;
@@ -185,86 +180,70 @@
     }
 
     .nav-tab:hover {
-      color: #FFFFFF;
-      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.55);
     }
 
     .nav-tab.active {
       color: #FFFFFF;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(6, 182, 212, 0.2) 100%);
-      border: 1px solid rgba(99, 102, 241, 0.4);
-      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
+      background: var(--accent-primary);
+      box-shadow: var(--accent-glow);
     }
 
     .nav-badge {
-      padding: 1px 7px;
+      padding: 2px 8px;
       border-radius: var(--radius-pill);
       font-size: 0.72rem;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-main);
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.25);
+      color: inherit;
     }
 
-    /* KPI Summary Row */
+    /* KPI Summary Row (30% Secondary Tinted Cards) */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
 
     .metric-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-md);
       padding: 16px 20px;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.2s ease, border-color 0.2s ease;
-      position: relative;
-      overflow: hidden;
+      transition: transform 0.2s ease;
     }
 
     .metric-card:hover {
       transform: translateY(-2px);
-      border-color: var(--border-accent);
-    }
-
-    .metric-card::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--indigo-primary), var(--cyan-accent));
-      opacity: 0.7;
     }
 
     .metric-label {
-      font-size: 0.76rem;
-      font-weight: 600;
+      font-size: 0.75rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 6px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
     }
 
     .metric-value {
-      font-size: 1.6rem;
+      font-size: 1.65rem;
       font-weight: 800;
-      color: #FFFFFF;
+      color: var(--text-main);
       letter-spacing: -0.02em;
-      font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Designer Buttons */
+    /* Designer Buttons (10% Accent & Secondary Variants) */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 10px 18px;
+      padding: 10px 20px;
       border-radius: var(--radius-sm);
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
@@ -278,66 +257,63 @@
     }
 
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.55;
       cursor: not-allowed;
       transform: none !important;
     }
 
+    /* 10% Accent Color Button */
     .btn-primary {
-      background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #818CF8 100%);
+      background: var(--accent-primary);
       color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 4px 18px -2px rgba(99, 102, 241, 0.45);
+      box-shadow: var(--accent-glow);
     }
 
     .btn-primary:hover:not(:disabled) {
-      box-shadow: 0 6px 22px rgba(99, 102, 241, 0.6);
+      background: var(--accent-hover);
       transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(124, 92, 252, 0.38);
     }
 
+    /* 30% Secondary Color Button */
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--bg-secondary);
       color: var(--text-main);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-secondary);
     }
 
     .btn-secondary:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--border-strong);
-      color: #FFFFFF;
+      background: #DCE2FF;
+      border-color: var(--accent-primary);
     }
 
     .btn-danger {
-      background: rgba(239, 68, 68, 0.12);
-      color: #F87171;
+      background: var(--block-bg);
+      color: var(--block-color);
       border: 1px solid var(--block-border);
     }
 
     .btn-danger:hover:not(:disabled) {
-      background: rgba(239, 68, 68, 0.22);
-      border-color: #EF4444;
-      color: #FFFFFF;
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.25);
+      background: #FEE2E2;
+      border-color: var(--block-color);
     }
 
     .btn-success {
-      background: rgba(16, 185, 129, 0.12);
-      color: #34D399;
+      background: var(--pass-bg);
+      color: var(--pass-color);
       border: 1px solid var(--pass-border);
     }
 
     .btn-success:hover:not(:disabled) {
-      background: rgba(16, 185, 129, 0.22);
-      border-color: #10B981;
-      color: #FFFFFF;
-      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+      background: #D1FAE5;
+      border-color: var(--pass-color);
     }
 
     .btn-pill {
       border-radius: var(--radius-pill);
     }
 
-    /* Cards */
+    /* Cards (60% Dominant White) */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -345,6 +321,32 @@
       padding: 24px;
       margin-bottom: 24px;
       box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-secondary-header {
+      background: var(--bg-secondary);
+      margin: -24px -24px 20px -24px;
+      padding: 16px 24px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      border-bottom: 1px solid var(--border-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .column-step-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-primary);
+      color: #FFFFFF;
     }
 
     .card-header {
@@ -359,32 +361,42 @@
     }
 
     .card-title {
-      font-size: 1rem;
+      font-size: 1.08rem;
       font-weight: 700;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      color: var(--text-main);
     }
 
-    /* Workspace 2-Column Grid */
-    .workspace {
+    /* 3-Column Playground Grid:
+       Col 1: Prompt Input
+       Col 2: Security Verdict
+       Col 3: Dedicated Ollama Output Column */
+    .playground-grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 24px;
+      grid-template-columns: 1.05fr 1fr 1.05fr;
+      gap: 22px;
+      align-items: stretch;
     }
 
-    @media (max-width: 1024px) {
-      .workspace {
+    .workspace-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    @media (max-width: 1200px) {
+      .playground-grid {
+        grid-template-columns: 1fr;
+      }
+      .workspace-2col {
         grid-template-columns: 1fr;
       }
     }
 
-    /* Attack Category Chips */
+    /* Attack Category Chips (30% Secondary Pill Chips) */
     .chip-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 7px;
       margin-bottom: 16px;
     }
 
@@ -392,27 +404,22 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
+      padding: 6px 13px;
       border-radius: var(--radius-pill);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
-      color: var(--text-secondary);
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      color: var(--text-main);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       cursor: pointer;
       transition: all 0.18s ease;
     }
 
     .chip:hover {
+      background: var(--accent-primary);
       color: #FFFFFF;
-      border-color: var(--indigo-primary);
+      border-color: var(--accent-primary);
       transform: translateY(-1px);
-    }
-
-    .chip-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
     }
 
     .sample-banner {
@@ -421,16 +428,16 @@
       padding: 10px 14px;
       border-radius: var(--radius-sm);
       margin-bottom: 14px;
-      background: rgba(99, 102, 241, 0.08);
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      color: #C7D2FE;
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
+      color: var(--text-main);
     }
 
     /* Form Fields */
     .field-label {
       display: block;
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: 0.76rem;
+      font-weight: 700;
       color: var(--text-secondary);
       margin-bottom: 6px;
       text-transform: uppercase;
@@ -441,7 +448,7 @@
       width: 100%;
       background-color: var(--bg-input);
       color: var(--text-main);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       border-radius: var(--radius-sm);
       padding: 12px 14px;
       font-family: inherit;
@@ -453,16 +460,16 @@
     }
 
     textarea:focus, input[type="text"]:focus, select:focus {
-      border-color: var(--indigo-primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      background-color: #FFFFFF;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
     /* Badges */
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
+      padding: 4px 11px;
       border-radius: var(--radius-pill);
       font-size: 0.74rem;
       font-weight: 700;
@@ -488,23 +495,68 @@
       border: 1px solid var(--block-border);
     }
 
+    /* Ollama Answered Status Indicator Box */
+    .answered-status-box {
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      border: 2px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .answered-status-box.answered-yes {
+      background: var(--pass-bg);
+      border-color: var(--pass-border);
+    }
+
+    .answered-status-box.answered-no {
+      background: var(--block-bg);
+      border-color: var(--block-border);
+    }
+
+    .answered-status-box.answered-sim {
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+    }
+
+    .answered-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .answered-value {
+      font-size: 0.95rem;
+      font-weight: 800;
+      font-family: 'Outfit', sans-serif;
+    }
+
     /* Verdict Banner & Risk Gauge */
     .verdict-banner {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px;
+      padding: 14px 16px;
       border-radius: var(--radius-sm);
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .risk-bar-track {
       width: 100%;
-      height: 8px;
-      background: var(--bg-input);
-      border-radius: 4px;
+      height: 10px;
+      background: var(--bg-dominant);
+      border-radius: 5px;
       overflow: hidden;
       margin-bottom: 16px;
       border: 1px solid var(--border);
@@ -512,13 +564,13 @@
 
     .risk-bar-fill {
       height: 100%;
-      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
+      transition: width 0.4s ease, background-color 0.4s ease;
     }
 
     .section-subtitle {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 8px;
@@ -529,7 +581,7 @@
 
     .output-box {
       background: var(--bg-input);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       border-radius: var(--radius-sm);
       padding: 14px 16px;
       font-size: 0.88rem;
@@ -537,24 +589,27 @@
       color: var(--text-main);
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 280px;
+      min-height: 130px;
+      max-height: 300px;
       overflow-y: auto;
     }
 
     .output-box.pass {
       border-color: var(--pass-border);
-      background: rgba(16, 185, 129, 0.04);
+      background: var(--pass-bg);
+      color: #065F46;
     }
 
     .output-box.warn {
       border-color: var(--warn-border);
-      background: rgba(245, 158, 11, 0.04);
+      background: var(--warn-bg);
+      color: #92400E;
     }
 
     .output-box.block {
       border-color: var(--block-border);
-      background: rgba(239, 68, 68, 0.06);
-      color: #FCA5A5;
+      background: var(--block-bg);
+      color: #991B1B;
     }
 
     /* Analyst Feedback Bar */
@@ -562,11 +617,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      padding: 12px 14px;
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-sm);
-      margin-top: 14px;
+      margin-top: 16px;
       flex-wrap: wrap;
       gap: 10px;
     }
@@ -580,24 +635,25 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.84rem;
+      font-size: 0.85rem;
     }
 
     th {
       text-align: left;
-      padding: 10px 14px;
-      font-size: 0.74rem;
+      padding: 12px 14px;
+      font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-secondary);
     }
 
     td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
-      color: var(--text-secondary);
+      color: var(--text-main);
       vertical-align: middle;
     }
 
@@ -607,8 +663,7 @@
     }
 
     tbody tr:hover {
-      background-color: var(--bg-card-hover);
-      color: var(--text-main);
+      background-color: var(--bg-secondary-subtle);
     }
 
     /* Pipeline Architecture Grid */
@@ -620,55 +675,46 @@
     }
 
     .tier-box {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-md);
       padding: 16px;
-      position: relative;
       transition: all 0.25s ease;
     }
 
-    .tier-box:hover {
-      border-color: var(--border-accent);
-      transform: translateY(-2px);
-    }
-
     .tier-box.active-pass {
-      border-color: var(--pass-border);
-      background: rgba(16, 185, 129, 0.08);
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+      border-color: var(--pass-color);
+      background: var(--pass-bg);
     }
 
     .tier-box.active-warn {
-      border-color: var(--warn-border);
-      background: rgba(245, 158, 11, 0.08);
-      box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+      border-color: var(--warn-color);
+      background: var(--warn-bg);
     }
 
     .tier-box.active-block {
-      border-color: var(--block-border);
-      background: rgba(239, 68, 68, 0.08);
-      box-shadow: 0 0 16px rgba(239, 68, 68, 0.15);
+      border-color: var(--block-color);
+      background: var(--block-bg);
     }
 
     .tier-num {
-      font-size: 0.68rem;
-      font-weight: 700;
+      font-size: 0.7rem;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--indigo-primary);
+      color: var(--accent-primary);
       margin-bottom: 4px;
     }
 
     .tier-name {
-      font-size: 0.92rem;
+      font-size: 0.94rem;
       font-weight: 700;
-      color: #FFFFFF;
+      color: var(--text-main);
       margin-bottom: 6px;
     }
 
     .tier-desc {
-      font-size: 0.76rem;
+      font-size: 0.78rem;
       color: var(--text-secondary);
       line-height: 1.4;
     }
@@ -683,8 +729,8 @@
     }
 
     .feat-item {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-sm);
       padding: 10px 12px;
       display: flex;
@@ -694,14 +740,15 @@
 
     .feat-item span {
       font-size: 0.72rem;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      font-weight: 600;
     }
 
     .feat-item strong {
-      font-size: 0.94rem;
-      color: #FFFFFF;
+      font-size: 0.95rem;
+      color: var(--text-main);
     }
 
     /* SHAP Bars */
@@ -709,13 +756,14 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       font-size: 0.8rem;
     }
 
     .shap-label {
-      width: 140px;
-      color: var(--text-secondary);
+      width: 150px;
+      color: var(--text-main);
+      font-weight: 500;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -723,15 +771,15 @@
 
     .shap-track {
       flex: 1;
-      height: 6px;
-      background: var(--bg-input);
-      border-radius: 3px;
+      height: 8px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
       overflow: hidden;
     }
 
     .shap-fill {
       height: 100%;
-      border-radius: 3px;
+      border-radius: 4px;
     }
 
     /* Benchmarks Cards Grid */
@@ -743,18 +791,17 @@
     }
 
     .benchmark-stat-card {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-md);
-      padding: 16px;
+      padding: 18px;
       text-align: center;
     }
 
     .benchmark-stat-val {
-      font-size: 1.7rem;
+      font-size: 1.75rem;
       font-weight: 800;
-      color: var(--indigo-primary);
-      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-primary);
       margin: 4px 0;
     }
 
@@ -766,23 +813,23 @@
     .progress-meta {
       display: flex;
       justify-content: space-between;
-      font-size: 0.82rem;
+      font-size: 0.84rem;
+      font-weight: 600;
       margin-bottom: 6px;
     }
 
     .progress-track {
       width: 100%;
-      height: 8px;
-      background: var(--bg-input);
-      border-radius: 4px;
+      height: 9px;
+      background: var(--bg-secondary);
+      border-radius: 5px;
       overflow: hidden;
-      border: 1px solid var(--border);
     }
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #10B981, #06B6D4);
-      border-radius: 4px;
+      background: var(--accent-primary);
+      border-radius: 5px;
     }
 
     /* Confusion Matrix 2x2 */
@@ -791,29 +838,29 @@
       max-width: 480px;
       margin: 16px auto;
       border-collapse: separate;
-      border-spacing: 8px;
+      border-spacing: 10px;
     }
 
     .cm-cell {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-secondary-subtle);
+      border: 1px solid var(--border-secondary);
       border-radius: var(--radius-sm);
-      padding: 16px;
+      padding: 18px;
       text-align: center;
     }
 
     .cm-cell.tp, .cm-cell.tn {
       border-color: var(--pass-border);
-      background: rgba(16, 185, 129, 0.08);
+      background: var(--pass-bg);
     }
 
     .cm-cell.fp, .cm-cell.fn {
       border-color: var(--block-border);
-      background: rgba(239, 68, 68, 0.08);
+      background: var(--block-bg);
     }
 
     .cm-num {
-      font-size: 1.5rem;
+      font-size: 1.55rem;
       font-weight: 800;
       font-family: 'JetBrains Mono', monospace;
     }
@@ -825,11 +872,11 @@
 
     .page-view.active {
       display: block;
-      animation: fadeIn 0.25s ease-in-out;
+      animation: fadeIn 0.2s ease-in-out;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
+      from { opacity: 0; transform: translateY(3px); }
       to { opacity: 1; transform: translateY(0); }
     }
   </style>
@@ -837,11 +884,10 @@
 <body>
   <div class="container">
 
-    <!-- Top App Header -->
+    <!-- Top App Header (Removed Subtitle & Logos as Requested) -->
     <header>
       <div class="brand">
         <h1>Prompt Injection Guardrail</h1>
-        <p>Real-Time Defensive Middleware &bull; XGBoost + DeBERTa Fallback &bull; Ollama Integration</p>
       </div>
 
       <div class="header-status-group">
@@ -856,7 +902,7 @@
       </div>
     </header>
 
-    <!-- Navigation Bar: Different Pages for Different Tasks -->
+    <!-- Navigation Bar (30% Secondary Surface + 10% Accent Active Pill) -->
     <nav class="nav-bar">
       <button class="nav-tab active" onclick="switchPage('page-playground', this)">
         Guardrail Playground
@@ -898,118 +944,121 @@
     </section>
 
     <!-- ======================================================== -->
-    <!-- PAGE 1: GUARDRAIL PLAYGROUND                            -->
+    <!-- PAGE 1: GUARDRAIL PLAYGROUND (3 SEPARATE COLUMNS)        -->
     <!-- ======================================================== -->
     <div id="page-playground" class="page-view active">
-      <div class="workspace">
+      <div class="playground-grid">
 
-        <!-- Left Column: Input Studio & Attack Presets -->
-        <div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Prompt Inspection Studio</span>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">Quick-Pick Attack Benchmarks</span>
-            </div>
+        <!-- COLUMN 1: PROMPT INPUT STUDIO -->
+        <div class="card">
+          <div class="card-secondary-header">
+            <span class="card-title">1. Prompt Input Studio</span>
+            <span class="column-step-badge">Step 1: Input</span>
+          </div>
 
-            <!-- Attack Presets Chips -->
-            <div class="chip-row">
-              <button type="button" class="chip" onclick="loadKaggleSample('benign')">
-                <span class="chip-dot" style="background:#10B981;"></span> Benign
-              </button>
-              <button type="button" class="chip" onclick="loadKaggleSample('jailbreaking')">
-                <span class="chip-dot" style="background:#EF4444;"></span> Jailbreak
-              </button>
-              <button type="button" class="chip" onclick="loadKaggleSample('role_playing')">
-                <span class="chip-dot" style="background:#A855F7;"></span> Role-Playing
-              </button>
-              <button type="button" class="chip" onclick="loadKaggleSample('obfuscation')">
-                <span class="chip-dot" style="background:#F59E0B;"></span> Obfuscation
-              </button>
-              <button type="button" class="chip" onclick="loadKaggleSample('data_leakage')">
-                <span class="chip-dot" style="background:#EAB308;"></span> Data Leakage
-              </button>
-              <button type="button" class="chip" onclick="loadKaggleSample('code_execution')">
-                <span class="chip-dot" style="background:#3B82F6;"></span> Code Execution
-              </button>
-              <button type="button" class="chip" onclick="setCustomPreset('sanitize')">
-                <span class="chip-dot" style="background:#EC4899;"></span> Borderline (Sanitize)
-              </button>
-              <button type="button" class="chip" onclick="setCustomPreset('homoglyph')">
-                <span class="chip-dot" style="background:#06B6D4;"></span> Homoglyphs
-              </button>
-            </div>
+          <div class="section-subtitle">
+            <span>Benchmark Attack Presets</span>
+          </div>
+          <div class="chip-row">
+            <button type="button" class="chip" onclick="loadKaggleSample('benign')">Benign</button>
+            <button type="button" class="chip" onclick="loadKaggleSample('jailbreaking')">Jailbreak</button>
+            <button type="button" class="chip" onclick="loadKaggleSample('role_playing')">Role-Playing</button>
+            <button type="button" class="chip" onclick="loadKaggleSample('obfuscation')">Obfuscation</button>
+            <button type="button" class="chip" onclick="loadKaggleSample('data_leakage')">Data Leakage</button>
+            <button type="button" class="chip" onclick="loadKaggleSample('code_execution')">Code Execution</button>
+            <button type="button" class="chip" onclick="setCustomPreset('sanitize')">Borderline (Sanitize)</button>
+            <button type="button" class="chip" onclick="setCustomPreset('homoglyph')">Homoglyphs</button>
+          </div>
 
-            <div id="kaggle-meta-banner" class="sample-banner"></div>
+          <div id="kaggle-meta-banner" class="sample-banner"></div>
 
-            <label class="field-label" for="prompt-input">User Prompt</label>
-            <textarea id="prompt-input" rows="4" placeholder="Enter an adversarial prompt to test the guardrail, or pick a benchmark preset above..."></textarea>
+          <label class="field-label" for="prompt-input">User Prompt</label>
+          <textarea id="prompt-input" rows="5" placeholder="Enter a prompt to test the guardrail or choose a preset above..."></textarea>
 
-            <label class="field-label" for="context-input">
-              Optional RAG / External Context 
-              <span style="font-weight:400; color:var(--text-muted);">(screens retrieved docs for indirect injections)</span>
-            </label>
-            <textarea id="context-input" rows="2" placeholder="Paste optional external documents or web search results here..."></textarea>
+          <label class="field-label" for="context-input">
+            Optional External / RAG Context
+          </label>
+          <textarea id="context-input" rows="3" placeholder="Paste optional external context to scan for indirect injections..."></textarea>
 
-            <button class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.92rem;" onclick="submitPrompt()">
-              Inspect Prompt &amp; Forward to Ollama
-            </button>
+          <button class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.94rem; margin-top: auto;" onclick="submitPrompt()">
+            Inspect Prompt &amp; Query Ollama
+          </button>
+        </div>
+
+        <!-- COLUMN 2: GUARDRAIL SECURITY VERDICT -->
+        <div class="card">
+          <div class="card-secondary-header">
+            <span class="card-title">2. Guardrail Security Verdict</span>
+            <span class="column-step-badge">Step 2: Middleware</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span class="section-subtitle" style="margin-bottom: 0;">Inspection Result</span>
+            <span id="detail-latency" class="mono" style="color: var(--text-muted); font-weight: 600;"></span>
+          </div>
+
+          <div id="detail-content" style="color: var(--text-secondary); flex: 1;">
+            Submit a prompt in Column 1 to view the middleware inspection decision and risk score.
           </div>
         </div>
 
-        <!-- Right Column: Security Verdict & Ollama Response -->
-        <div>
-          <!-- Guardrail Verdict Card -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Security Verdict</span>
-              <span id="detail-latency" class="mono" style="color: var(--text-muted);"></span>
-            </div>
+        <!-- COLUMN 3: DEDICATED OLLAMA OUTPUT COLUMN -->
+        <div class="card">
+          <div class="card-secondary-header">
+            <span class="card-title">3. Ollama LLM Output Column</span>
+            <span class="column-step-badge">Step 3: LLM Response</span>
+          </div>
 
-            <div id="detail-content" style="color: var(--text-secondary);">
-              Submit a prompt or select a preset to view the guardrail verdict and risk assessment.
+          <!-- Explicit Indicator: Did Ollama Answer This Question? -->
+          <div id="ollama-answered-box" class="answered-status-box">
+            <div>
+              <div class="answered-label">Did Ollama Answer This Question?</div>
+              <div id="ollama-answered-text" class="answered-value" style="color: var(--text-main);">
+                Waiting for prompt submission...
+              </div>
+            </div>
+            <span id="ollama-answered-badge" class="badge" style="background: var(--bg-secondary); color: var(--text-main);">IDLE</span>
+          </div>
+
+          <!-- Model Selector & Connection Bar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <span class="field-label" style="margin-bottom: 0;">Active Ollama Model:</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <select id="ollama-model-select" onchange="changeOllamaModel()" style="margin-bottom: 0; padding: 6px 12px; font-size: 0.82rem; width: auto; min-width: 150px;">
+                <option value="">Detecting models...</option>
+              </select>
+              <button class="btn btn-secondary btn-pill" onclick="refreshOllama()" style="padding: 6px 14px; font-size: 0.78rem;">Refresh</button>
             </div>
           </div>
 
-          <!-- Ollama LLM Response Card -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Ollama LLM Output</span>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <select id="ollama-model-select" onchange="changeOllamaModel()" style="margin-bottom: 0; padding: 6px 12px; font-size: 0.82rem; width: auto; min-width: 140px;">
-                  <option value="">Detecting models...</option>
-                </select>
-                <button class="btn btn-secondary btn-pill" onclick="refreshOllama()" title="Refresh Ollama connection" style="padding: 6px 14px;">Refresh</button>
-              </div>
-            </div>
+          <div id="ollama-conn-banner" style="font-size: 0.78rem; color: var(--text-secondary); background: var(--bg-secondary-subtle); border: 1px solid var(--border-secondary); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px;">
+            Checking local Ollama connection...
+          </div>
 
-            <div id="ollama-conn-banner" style="font-size: 0.78rem; color: var(--text-secondary); background: var(--bg-input); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px;">
-              Checking local Ollama connection...
-            </div>
+          <div class="section-subtitle">
+            <span>Ollama Protected Response</span>
+            <span id="ollama-meta" class="mono"></span>
+          </div>
+          <div id="ollama-protected" class="output-box pass">
+            Ollama's response to your prompt will appear here once evaluated.
+          </div>
 
-            <div class="section-subtitle">
-              <span>Protected Output (Filtered via Guardrail)</span>
-              <span id="ollama-meta" class="mono"></span>
-            </div>
-            <div id="ollama-protected" class="output-box pass">
-              Submit a prompt to view the secure Ollama model response.
-            </div>
+          <!-- Unprotected Direct Comparison -->
+          <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">
+              Test raw prompt directly on Ollama without guardrail:
+            </span>
+            <button id="compare-btn" class="btn btn-danger btn-pill" style="padding: 7px 14px; font-size: 0.78rem;" onclick="runUnprotectedComparison()">
+              Run Unprotected Bypass
+            </button>
+          </div>
 
-            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <span style="font-size: 0.78rem; color: var(--text-secondary);">
-                Send the raw unshielded prompt directly to Ollama to test vulnerabilities:
-              </span>
-              <button id="compare-btn" class="btn btn-danger btn-pill" onclick="runUnprotectedComparison()">
-                Run Unprotected Bypass
-              </button>
+          <div id="ollama-unprotected-wrap" style="display: none; margin-top: 14px;">
+            <div class="section-subtitle" style="color: var(--block-color);">
+              <span>Unprotected Ollama Output (Guardrail Bypassed)</span>
+              <span id="ollama-unprotected-meta" class="mono"></span>
             </div>
-
-            <div id="ollama-unprotected-wrap" style="display: none; margin-top: 14px;">
-              <div class="section-subtitle" style="color: var(--block-color);">
-                <span>Unprotected Output (Middleware Bypassed)</span>
-                <span id="ollama-unprotected-meta" class="mono"></span>
-              </div>
-              <div id="ollama-unprotected" class="output-box block"></div>
-            </div>
+            <div id="ollama-unprotected" class="output-box block"></div>
           </div>
         </div>
 
@@ -1024,13 +1073,13 @@
         <div class="card-header">
           <div>
             <span class="card-title">Security Event Audit Stream</span>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
-              Chronological log of evaluated prompts. Select any entry to inspect details or label it for model retraining.
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
+              Chronological log of evaluated prompts. Click any row to load its verdict and Ollama response into the Playground.
             </p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <label style="font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <label style="font-size: 0.84rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
               <input type="checkbox" id="only-flagged" onchange="loadAudit()" /> Flagged / Attacks Only
             </label>
             <button class="btn btn-secondary btn-pill" onclick="loadAudit()">Refresh Stream</button>
@@ -1041,7 +1090,8 @@
           <thead>
             <tr>
               <th>ID / Timestamp</th>
-              <th>Verdict</th>
+              <th>Guardrail Verdict</th>
+              <th>Ollama Answered?</th>
               <th>Risk Score</th>
               <th>Latency</th>
               <th>Analyst Label</th>
@@ -1057,16 +1107,15 @@
     <!-- PAGE 3: PIPELINE DIAGNOSTICS & EXPLAINABILITY            -->
     <!-- ======================================================== -->
     <div id="page-diagnostics" class="page-view">
-      <!-- 5-Tier Architecture Pipeline Visualization -->
       <div class="card">
         <div class="card-header">
           <div>
             <span class="card-title">Five-Tier Inspection Pipeline Architecture</span>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
-              Active state highlighting for the most recently inspected prompt.
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
+              Live trace across all five defensive layers for the currently selected prompt.
             </p>
           </div>
-          <span class="mono" style="font-size: 0.8rem; color: var(--indigo-primary); font-weight: 600;">
+          <span class="mono" style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 700;">
             Soft-Voting: p = 0.35·p_xgb + 0.65·p_seq &nbsp;|&nbsp; t_lo=0.35, t_hi=0.85
           </span>
         </div>
@@ -1100,21 +1149,20 @@
           <div class="tier-box" id="pipe-t6">
             <div class="tier-num">Backend</div>
             <div class="tier-name">Ollama LLM</div>
-            <div class="tier-desc" id="pipe-t6-meta">Offline model invocation or simulated engine</div>
+            <div class="tier-desc" id="pipe-t6-meta">Local model invocation</div>
           </div>
         </div>
       </div>
 
-      <!-- Feature Extraction & SHAP Attributions -->
-      <div class="workspace" style="margin-top: 24px;">
+      <div class="workspace-2col">
         <div class="card">
           <div class="card-header">
             <span class="card-title">Extracted Features (Selected Prompt)</span>
-            <span class="mono" id="diag-lang-meta" style="color: var(--text-muted); font-size: 0.8rem;"></span>
+            <span class="mono" id="diag-lang-meta" style="color: var(--text-secondary); font-size: 0.8rem;"></span>
           </div>
           <div id="diag-features-container">
             <p style="color: var(--text-secondary); font-size: 0.85rem;">
-              Inspect a prompt from the Playground to see its 15 extracted feature values here.
+              Inspect a prompt from the Playground to view its 15 extracted feature values here.
             </p>
           </div>
         </div>
@@ -1122,7 +1170,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title">SHAP Feature Attributions</span>
-            <span style="font-size: 0.78rem; color: var(--text-muted);">Contribution to Malicious (+) vs Benign (-)</span>
+            <span style="font-size: 0.78rem; color: var(--text-secondary);">Contribution to Malicious (+) vs Benign (-)</span>
           </div>
           <div id="diag-shap-container">
             <p style="color: var(--text-secondary); font-size: 0.85rem;">
@@ -1137,53 +1185,51 @@
     <!-- PAGE 4: MODEL BENCHMARKS & SETTINGS                      -->
     <!-- ======================================================== -->
     <div id="page-benchmarks" class="page-view">
-      <!-- High-Level Model Metrics -->
       <div class="card">
         <div class="card-header">
           <div>
             <span class="card-title">Model Benchmarks on Combined Dataset</span>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
               Evaluated on 15,009 samples from Kaggle benchmark + Hugging Face datasets.
             </p>
           </div>
-          <span class="badge badge-PASS">Production Ready</span>
+          <span class="badge badge-PASS">Production Verified</span>
         </div>
 
         <div class="benchmarks-grid">
           <div class="benchmark-stat-card">
             <div class="metric-label">Accuracy</div>
             <div class="benchmark-stat-val" id="bm-acc">98.60%</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Held-out Test Split</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Held-out Test Split</div>
           </div>
           <div class="benchmark-stat-card">
             <div class="metric-label">F1-Score</div>
             <div class="benchmark-stat-val" id="bm-f1">98.23%</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Weighted Balance</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Balanced Precision/Recall</div>
           </div>
           <div class="benchmark-stat-card">
             <div class="metric-label">Precision</div>
             <div class="benchmark-stat-val" id="bm-prec">98.73%</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Low False Alarm</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Low False Alarm Rate</div>
           </div>
           <div class="benchmark-stat-card">
             <div class="metric-label">Recall</div>
             <div class="benchmark-stat-val" id="bm-rec">97.74%</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Attack Interception</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Attack Interception</div>
           </div>
           <div class="benchmark-stat-card">
             <div class="metric-label">AUC-ROC</div>
             <div class="benchmark-stat-val" id="bm-auc">0.9967</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Discrimination Index</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Separability Score</div>
           </div>
           <div class="benchmark-stat-card">
             <div class="metric-label">Inference Latency</div>
             <div class="benchmark-stat-val" id="bm-lat">2.46 ms</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Sub-3ms Overhead</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Per Prompt Overhead</div>
           </div>
         </div>
 
-        <!-- Attack Category Breakdown -->
-        <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border);">
+        <div style="margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border);">
           <div class="section-subtitle">
             <span>Per-Attack Category Detection Rate (Recall)</span>
           </div>
@@ -1229,27 +1275,26 @@
           </div>
         </div>
 
-        <!-- Confusion Matrix -->
         <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border);">
           <div class="section-subtitle"><span>Confusion Matrix (Held-out Test Split)</span></div>
           <table class="cm-table">
             <tr>
               <td class="cm-cell tn">
-                <div style="font-size: 0.72rem; color: var(--text-muted);">TRUE NEGATIVES (SAFE)</div>
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">TRUE NEGATIVES (SAFE)</div>
                 <div class="cm-num" style="color: var(--pass-color);">1,794</div>
               </td>
               <td class="cm-cell fp">
-                <div style="font-size: 0.72rem; color: var(--text-muted);">FALSE POSITIVES</div>
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">FALSE POSITIVES</div>
                 <div class="cm-num" style="color: var(--block-color);">15</div>
               </td>
             </tr>
             <tr>
               <td class="cm-cell fn">
-                <div style="font-size: 0.72rem; color: var(--text-muted);">FALSE NEGATIVES</div>
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">FALSE NEGATIVES</div>
                 <div class="cm-num" style="color: var(--block-color);">27</div>
               </td>
               <td class="cm-cell tp">
-                <div style="font-size: 0.72rem; color: var(--text-muted);">TRUE POSITIVES (INTERCEPTED)</div>
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">TRUE POSITIVES (BLOCKED)</div>
                 <div class="cm-num" style="color: var(--pass-color);">1,166</div>
               </td>
             </tr>
@@ -1257,13 +1302,12 @@
         </div>
       </div>
 
-      <!-- System Prompt & Ollama Configuration -->
       <div class="card">
         <div class="card-header">
           <div>
             <span class="card-title">Ollama LLM Configuration &amp; System Prompt</span>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
-              Manage the security instructions injected into your local Ollama instance for safe queries.
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
+              Manage the defensive system instructions sent to your local Ollama model for safe queries.
             </p>
           </div>
           <button class="btn btn-primary btn-pill" onclick="saveSystemPrompt()">Save System Prompt</button>
@@ -1283,7 +1327,6 @@
   <script>
     let lastSelectedItem = null;
 
-    // Tab Switching Navigation
     function switchPage(pageId, tabElement) {
       document.querySelectorAll(".page-view").forEach(p => p.classList.remove("active"));
       document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
@@ -1292,7 +1335,6 @@
       if (targetPage) targetPage.classList.add("active");
       if (tabElement) tabElement.classList.add("active");
 
-      // Auto-load specific page data
       if (pageId === "page-audit") {
         loadAudit();
       } else if (pageId === "page-benchmarks") {
@@ -1343,18 +1385,28 @@
         const tr = document.createElement("tr");
         tr.onclick = () => {
           renderDetail(it);
-          // If clicked from audit tab, stay on audit tab or show detail
         };
         const idCol = it.dataset_id ? `<code>${it.dataset_id}</code>` : new Date(it.ts).toLocaleTimeString();
         const labelText = it.label ? `<span class="badge badge-${it.label === 'benign' ? 'PASS' : 'BLOCK'}">${it.label.toUpperCase()}</span>` : `<span style="color:var(--text-muted); font-size:0.75rem;">Unlabeled</span>`;
 
+        // Explicitly show in Audit table whether Ollama answered or not
+        let ollamaAnsweredHtml = "";
+        if (it.action === "BLOCK") {
+          ollamaAnsweredHtml = `<span class="badge badge-BLOCK">NO (Blocked)</span>`;
+        } else if (it.llm_invoked) {
+          ollamaAnsweredHtml = `<span class="badge badge-PASS">YES (Ollama)</span>`;
+        } else {
+          ollamaAnsweredHtml = `<span class="badge badge-SANITIZE">YES (Simulator)</span>`;
+        }
+
         tr.innerHTML = `
           <td>${idCol}</td>
           <td><span class="badge badge-${it.action}">${it.action}</span></td>
-          <td class="mono" style="font-weight:600; color:${it.action === 'BLOCK' ? 'var(--block-color)' : (it.action === 'SANITIZE' ? 'var(--warn-color)' : 'var(--pass-color)')}">${(it.p ?? 0).toFixed(3)}</td>
-          <td class="mono" style="color:var(--text-muted)">${it.latency_ms} ms</td>
+          <td>${ollamaAnsweredHtml}</td>
+          <td class="mono" style="font-weight:700; color:${it.action === 'BLOCK' ? 'var(--block-color)' : (it.action === 'SANITIZE' ? 'var(--warn-color)' : 'var(--pass-color)')}">${(it.p ?? 0).toFixed(3)}</td>
+          <td class="mono" style="color:var(--text-secondary)">${it.latency_ms} ms</td>
           <td>${labelText}</td>
-          <td>${escapeHtml(it.raw.slice(0, 50))}${it.raw.length > 50 ? "..." : ""}</td>
+          <td>${escapeHtml(it.raw.slice(0, 48))}${it.raw.length > 48 ? "..." : ""}</td>
         `;
         tbody.appendChild(tr);
 
@@ -1382,7 +1434,7 @@
           document.getElementById("prompt-input").value = item.prompt;
           banner.innerHTML = `
             <strong>Dataset Preset Loaded:</strong> Category: <code>${item.attack_type || category}</code>
-            &bull; Expected: <strong>${(item.label || "unknown").toUpperCase()}</strong>
+            &bull; Ground Truth: <strong>${(item.label || "unknown").toUpperCase()}</strong>
             ${item.id ? `&bull; ID: <code>${item.id}</code>` : ""}
           `;
         }
@@ -1519,13 +1571,13 @@
       const diagShap = document.getElementById("diag-shap-container");
       if (diagShap) diagShap.innerHTML = shapBars || "<p style='color:var(--text-muted)'>No SHAP values available.</p>";
 
-      // Render Verdict Card in Playground
+      // Render Verdict Card in Column 2
       document.getElementById("detail-content").innerHTML = `
         <div class="verdict-banner">
           <div>
             <span class="badge badge-${item.action}">${item.action}</span>
-            <span style="margin-left: 8px; font-weight: 700; color: #FFFFFF;">
-              ${item.action === "BLOCK" ? "Adversarial Prompt Blocked" : (item.action === "SANITIZE" ? "Suspicious Tokens Neutralized" : "Clean Prompt Approved")}
+            <span style="margin-left: 8px; font-weight: 700; color: var(--text-main);">
+              ${item.action === "BLOCK" ? "Adversarial Prompt Blocked" : (item.action === "SANITIZE" ? "Suspicious Spans Sanitized" : "Clean Prompt Approved")}
             </span>
           </div>
           <span class="mono" style="font-weight: 700; color: ${barColor};">
@@ -1538,20 +1590,20 @@
         </div>
 
         <div class="section-subtitle">
-          <span>Forwarding Decision</span>
-          <span class="mono">${item.action === "BLOCK" ? "0 tokens sent to LLM" : "Forwarded to LLM"}</span>
+          <span>Middleware Forwarding Status</span>
+          <span class="mono">${item.action === "BLOCK" ? "Blocked (Not Sent to Ollama)" : "Sent to Ollama"}</span>
         </div>
         <div class="output-box ${boxCls}">
           ${item.action === "BLOCK"
-            ? "Intercepted at Tier 5 — Prompt was blocked before reaching Ollama."
-            : "Forwarded: \"" + escapeHtml(item.prompt) + "\""}
+            ? "Intercepted at Tier 5 — This prompt was blocked by the guardrail before reaching Ollama."
+            : "Forwarded Prompt:\n\"" + escapeHtml(item.prompt) + "\""}
         </div>
 
         <div class="feedback-bar">
           <div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: #FFFFFF;">Analyst Verification</div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">Analyst Verification</div>
             <div id="analyst-label-status" style="font-size: 0.76rem; color: var(--text-secondary);">
-              ${item.label ? "Label saved: " + item.label.toUpperCase() : "Is this verdict correct? Label for retraining:"}
+              ${item.label ? "Saved label: " + item.label.toUpperCase() : "Verify verdict accuracy for retraining:"}
             </div>
           </div>
           <div class="feedback-actions">
@@ -1605,27 +1657,54 @@
     function renderOllamaPanel(item) {
       const out = document.getElementById("ollama-protected");
       const meta = document.getElementById("ollama-meta");
+      const ansBox = document.getElementById("ollama-answered-box");
+      const ansText = document.getElementById("ollama-answered-text");
+      const ansBadge = document.getElementById("ollama-answered-badge");
+
       document.getElementById("ollama-unprotected-wrap").style.display = "none";
 
+      // Case 1: Blocked by Guardrail -> Ollama DID NOT answer
       if (item.action === "BLOCK") {
+        ansBox.className = "answered-status-box answered-no";
+        ansText.style.color = "var(--block-color)";
+        ansText.textContent = "NO — Blocked by Guardrail (Never Sent to Ollama)";
+        ansBadge.className = "badge badge-BLOCK";
+        ansBadge.textContent = "NOT ANSWERED";
+
         out.className = "output-box block";
-        out.textContent = "Blocked by guardrail middleware — this prompt was never forwarded to Ollama.";
-        meta.textContent = "0 tokens &bull; not invoked";
+        out.textContent = "Ollama did not answer this question because the guardrail intercepted and blocked the prompt before it could reach the LLM.";
+        meta.textContent = "0 tokens · LLM not invoked";
         return;
       }
+
+      // Case 2: Prompt approved/sanitized, but Ollama was offline (Simulator used)
       if (!item.llm_invoked) {
-        out.className = "output-box pass";
+        ansBox.className = "answered-status-box answered-sim";
+        ansText.style.color = "var(--warn-color)";
+        ansText.textContent = "SIMULATED — Prompt Approved, Offline Simulator Answered";
+        ansBadge.className = "badge badge-SANITIZE";
+        ansBadge.textContent = "SIMULATOR ANSWERED";
+
+        out.className = "output-box warn";
         out.textContent = item.llm_response || "";
-        meta.textContent = item.llm_error ? "Ollama error — simulator used" : item.llm_backend;
+        meta.textContent = item.llm_error ? "Ollama offline — simulator used" : item.llm_backend;
         if (item.llm_error) {
-          out.textContent += `\n\n[Ollama error: ${item.llm_error}]`;
+          out.textContent += `\n\n[Note: Local Ollama server was unreachable (${item.llm_error})]`;
         }
         return;
       }
+
+      // Case 3: Ollama Answered the Question!
+      ansBox.className = "answered-status-box answered-yes";
+      ansText.style.color = "var(--pass-color)";
+      ansText.textContent = `YES — Answered by Ollama (${item.llm_model})`;
+      ansBadge.className = "badge badge-PASS";
+      ansBadge.textContent = "OLLAMA ANSWERED";
+
       out.className = "output-box pass";
       out.textContent = item.llm_response || "(empty response)";
-      const tok = item.llm_eval_count ? ` &bull; ${item.llm_eval_count} tokens` : "";
-      meta.textContent = `${item.llm_model} &bull; ${item.llm_latency_ms} ms${tok}`;
+      const tok = item.llm_eval_count ? ` · ${item.llm_eval_count} tokens` : "";
+      meta.textContent = `${item.llm_model} · ${item.llm_latency_ms} ms${tok}`;
     }
 
     async function runUnprotectedComparison() {
@@ -1647,7 +1726,7 @@
         const r = await res.json();
         if (r.ok) {
           out.textContent = r.response || "(empty response)";
-          meta.textContent = `${r.model} &bull; ${r.latency_ms} ms`;
+          meta.textContent = `${r.model} · ${r.latency_ms} ms`;
         } else {
           out.textContent = `Ollama error: ${r.error}`;
         }
@@ -1658,13 +1737,22 @@
 
     function setOllamaLoading() {
       const out = document.getElementById("ollama-protected");
+      const ansBox = document.getElementById("ollama-answered-box");
+      const ansText = document.getElementById("ollama-answered-text");
+      const ansBadge = document.getElementById("ollama-answered-badge");
+
+      ansBox.className = "answered-status-box";
+      ansText.style.color = "var(--text-secondary)";
+      ansText.textContent = "Evaluating prompt and querying Ollama...";
+      ansBadge.className = "badge";
+      ansBadge.textContent = "PROCESSING";
+
       out.className = "output-box";
-      out.textContent = "Inspecting prompt through 5-tier guardrail, then querying Ollama...";
+      out.textContent = "Inspecting prompt through 5-tier guardrail, then waiting for Ollama...";
       document.getElementById("ollama-meta").textContent = "";
       document.getElementById("ollama-unprotected-wrap").style.display = "none";
     }
 
-    // System Prompt Management
     async function loadSystemPrompt() {
       try {
         const res = await fetch("/api/system-prompt");
