@@ -54,13 +54,38 @@
       --block-bg: #FEF2F2;
       --block-border: #FECACA;
 
-      --radius-sm: 0px !important;
-      --radius-md: 0px !important;
-      --radius-lg: 0px !important;
-      --radius-pill: 0px !important;
+      --radius-sm: 0px;
+      --radius-md: 0px;
+      --radius-lg: 0px;
+      --radius-pill: 0px;
 
       --shadow-sm: 0 2px 10px rgba(17, 24, 39, 0.04);
       --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.07);
+    }
+
+    /* Enforce modern square design on all interactive elements as requested */
+    button,
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-pill,
+    .nav-bar,
+    .nav-tab,
+    .nav-badge,
+    .status-pill,
+    .column-step-badge,
+    .badge,
+    .chip,
+    .file-dropzone,
+    .metric-card,
+    .output-box,
+    .answered-status-box,
+    .card,
+    header,
+    input,
+    textarea,
+    select {
+      border-radius: 0px !important;
     }
 
     * {
@@ -244,7 +269,7 @@
     /* button styling */
     .button {
       --border-right: 6px;
-      --text-stroke-color: rgba(255,255,255,0.6);
+      --text-stroke-color: rgba(17, 24, 39, 0.35);
       --animation-color: #37FF8B;
       --fs-size: 2em;
       letter-spacing: 3px;
@@ -1036,8 +1061,7 @@
     .loading-inline {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
+      gap: 10px;
       white-space: normal;
       line-height: 1.4;
       vertical-align: middle;
@@ -1045,9 +1069,11 @@
 
     .spinner-wrap {
       position: relative;
-      display: inline-block;
-      width: 16px;
-      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
       flex-shrink: 0;
       vertical-align: middle;
     }
@@ -1056,21 +1082,19 @@
       position: absolute;
       width: 9px;
       height: 9px;
-      left: calc(50% - 2.25px);
-      top: calc(50% - 6.75px);
+      left: 50%;
+      top: 50%;
+      margin-left: -4.5px;
+      margin-top: -4.5px;
       transform: scale(0.32);
-      transform-origin: 2.25px 6.75px;
-    }
-
-    .btn-primary .spinner div {
-      background: #FFFFFF;
+      transform-origin: center center;
     }
 
     .spinner div {
       position: absolute;
       width: 50%;
       height: 150%;
-      background: #000000;
+      background: #111827;
       transform: rotate(calc(var(--rotation) * 1deg)) translate(0, calc(var(--translation) * 1%));
       animation: spinner-fzua35 1s calc(var(--delay) * 1s) infinite ease;
     }
@@ -1932,10 +1956,7 @@
         document.getElementById("prompt-input").value = prompt;
       }
 
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = renderLoadingWithSpinner("Inspecting &amp; Querying Ollama...");
-      }
+      if (submitBtn) submitBtn.disabled = true;
       setOllamaLoading();
 
       try {
@@ -1949,10 +1970,7 @@
         await loadStats();
         await loadAudit();
       } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = "Inspect Prompt &amp; Query Ollama";
-        }
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
@@ -1976,11 +1994,7 @@
 
     async function retrainModel() {
       const btn = event?.currentTarget || event?.target;
-      const origHtml = btn ? btn.innerHTML : "Retrain Model";
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = renderLoadingWithSpinner("Retraining...");
-      }
+      if (btn) btn.disabled = true;
       try {
         const res = await fetch("/api/retrain", { method: "POST" });
         const r = await res.json();
@@ -1990,10 +2004,7 @@
           alert(`Retraining error: ${r.error}`);
         }
       } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = origHtml;
-        }
+        if (btn) btn.disabled = false;
         await loadStats();
       }
     }
@@ -2221,7 +2232,6 @@
       out.innerHTML = renderLoadingWithSpinner("Forwarding raw prompt directly to Ollama (guardrail bypassed)...");
       meta.textContent = "";
       btn.disabled = true;
-      btn.innerHTML = renderLoadingWithSpinner("Querying Ollama...");
       try {
         const res = await fetch("/api/ollama/direct", {
           method: "POST",
@@ -2237,7 +2247,6 @@
         }
       } finally {
         btn.disabled = false;
-        btn.innerHTML = "Run Unprotected Bypass";
       }
     }
 
@@ -2246,13 +2255,21 @@
       const ansBox = document.getElementById("ollama-answered-box");
       const ansText = document.getElementById("ollama-answered-text");
       const ansBadge = document.getElementById("ollama-answered-badge");
+      const detail = document.getElementById("detail-content");
 
+      // Column 2: Guardrail Security Verdict loading animation
+      if (detail) {
+        detail.innerHTML = renderLoadingWithSpinner("Running 5-tier guardrail inspection...");
+      }
+
+      // Column 3: Answered status box loading animation
       ansBox.className = "answered-status-box";
       ansText.style.color = "var(--text-secondary)";
-      ansText.textContent = "Evaluating prompt and querying Ollama...";
+      ansText.innerHTML = renderLoadingWithSpinner("Evaluating prompt and querying Ollama...");
       ansBadge.className = "badge";
       ansBadge.textContent = "PROCESSING";
 
+      // Column 3: Protected response box loading animation
       out.className = "output-box";
       out.innerHTML = renderLoadingWithSpinner("Inspecting prompt through 5-tier guardrail, then waiting for Ollama...");
       document.getElementById("ollama-meta").textContent = "";

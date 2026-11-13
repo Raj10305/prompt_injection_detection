@@ -40,5 +40,6 @@ data/combined_dataset.*
 
 # Logs and temporary files
 *.log
+fig_8_*.png
 RULES.md
 
