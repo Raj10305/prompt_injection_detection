@@ -24,6 +24,7 @@ from feature_extractor import FEATURE_NAMES, extract, extract_summary
 from inference_engine import InferenceEngine
 from sanitizer import sanitize
 from train_model import build_and_train, load_jsonl_dataset
+import training_db
 from llm_backend import (
     OLLAMA_BASE,
     generate_llm_response,
@@ -361,16 +362,99 @@ def label_audit(task_id):
     for rec in AUDIT_LOGS:
         if rec["task_id"] == task_id:
             rec["label"] = label
+            # Persist labeled audit prompt directly into separate training database
+            try:
+                training_db.add_prompt(
+                    prompt=rec["raw"],
+                    label=label,
+                    attack_type=rec.get("attack_type", "prompt_injection"),
+                    source="audit_feedback",
+                    notes=f"Labeled via dashboard (task {task_id[:8]})",
+                )
+            except Exception as e:
+                print(f"[Warning] Could not persist to training_db: {e}")
             return jsonify(ok=True, task_id=task_id, label=label)
     return jsonify(error="not found"), 404
 
 
+# -----------------------------------------------------------------------
+# Separate Training Database API Endpoints
+# -----------------------------------------------------------------------
+
+@app.get("/api/training-db/prompts")
+def list_training_prompts():
+    """Retrieve prompts stored in the separate training database."""
+    label_filter = request.args.get("label")
+    limit = min(int(request.args.get("limit", 100)), 500)
+    offset = max(int(request.args.get("offset", 0)), 0)
+    prompts = training_db.get_prompts(label_filter=label_filter, limit=limit, offset=offset)
+    stats = training_db.get_db_stats()
+    return jsonify(prompts=prompts, stats=stats)
+
+
+@app.post("/api/training-db/prompts")
+def add_training_prompt():
+    """
+    Allow users to store a prompt into the dedicated SQLite training database.
+    Payload: {"prompt": "...", "label": "attack"|"benign", "attack_type": "...", "notes": "..."}
+    """
+    body = request.get_json(silent=True) or {}
+    prompt = (body.get("prompt") or "").strip()
+    label = (body.get("label") or "").strip().lower()
+    attack_type = (body.get("attack_type") or "prompt_injection").strip()
+    notes = (body.get("notes") or "").strip()
+    source = (body.get("source") or "user_playground").strip()
+
+    if not prompt:
+        return jsonify(error="Prompt text is required."), 400
+    if label not in ("attack", "benign", "malicious", "safe", "injection"):
+        return jsonify(error="Label must be 'attack' or 'benign'."), 400
+
+    try:
+        saved = training_db.add_prompt(
+            prompt=prompt,
+            label=label,
+            attack_type=attack_type,
+            source=source,
+            notes=notes,
+        )
+        stats = training_db.get_db_stats()
+        return jsonify(ok=True, record=saved, stats=stats)
+    except Exception as exc:
+        return jsonify(error=str(exc)), 500
+
+
+@app.delete("/api/training-db/prompts/<int:prompt_id>")
+def delete_training_prompt(prompt_id):
+    """Delete a prompt from the separate training database."""
+    ok = training_db.delete_prompt(prompt_id)
+    if not ok:
+        return jsonify(error="Prompt not found"), 404
+    stats = training_db.get_db_stats()
+    return jsonify(ok=True, deleted_id=prompt_id, stats=stats)
+
+
+@app.get("/api/training-db/stats")
+def get_training_db_stats():
+    """Return statistics on user-stored training prompts."""
+    stats = training_db.get_db_stats()
+    return jsonify(stats)
+
+
+@app.post("/api/training-db/clear")
+def clear_training_db():
+    """Clear all records from the separate training database."""
+    deleted_count = training_db.clear_database()
+    return jsonify(ok=True, deleted=deleted_count)
+
+
 @app.post("/api/retrain")
 def retrain_models():
-    """Online Active Learning: Retrain ensemble on Kaggle dataset + analyst feedback."""
+    """Online Active Learning: Retrain ensemble on Kaggle dataset + separate training DB + analyst feedback."""
     global ENGINE, EXPLAINER, KAGGLE_RECORDS
     try:
         labeled = [r for r in AUDIT_LOGS if r.get("label") in ("attack", "benign")]
+        db_stats_before = training_db.get_db_stats()
         metrics = build_and_train(extra_samples=labeled)
         _, _, _, KAGGLE_RECORDS = load_jsonl_dataset(ui_only=True)
         ENGINE = InferenceEngine(w=metrics.get("optimal_w", 0.5))
@@ -379,7 +463,12 @@ def retrain_models():
                 EXPLAINER = shap.TreeExplainer(ENGINE.booster)
             except Exception:
                 EXPLAINER = None
-        return jsonify(ok=True, labeled_used=len(labeled), metrics=metrics)
+        return jsonify(
+            ok=True,
+            labeled_used=len(labeled),
+            db_prompts_used=db_stats_before["total"],
+            metrics=metrics,
+        )
     except Exception as exc:
         import traceback
         traceback.print_exc()
@@ -399,6 +488,7 @@ def get_stats():
         else 0.0
     )
     models = get_installed_ollama_models()
+    db_stats = training_db.get_db_stats()
     return jsonify({
         "total": total,
         "blocked": blocked,
@@ -410,6 +500,7 @@ def get_stats():
         "ollama_models": models,
         "avg_latency_ms": avg_lat,
         "queue": 0,
+        "training_db": db_stats,
     })
 
 

@@ -1057,6 +1057,39 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* Modal Backdrop & Dialog for Save to Training DB */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(17, 24, 39, 0.45);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-dialog {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 0px !important;
+      padding: 24px;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .active-filter {
+      background: var(--accent-primary) !important;
+      color: #FFFFFF !important;
+      border-color: var(--accent-primary) !important;
+    }
+
     /* Loading Spinner (Custom 10-Blade Radial Spinner - Compact & Centered) */
     .loading-inline {
       display: inline-flex;
@@ -1196,6 +1229,10 @@
       <button class="nav-tab active" onclick="switchPage('page-playground', this)">
         Guardrail Playground
       </button>
+      <button class="nav-tab" onclick="switchPage('page-training-db', this)">
+        Training Dataset DB
+        <span class="nav-badge" id="nav-training-db-count">0</span>
+      </button>
       <button class="nav-tab" onclick="switchPage('page-audit', this)">
         Security Audit Log
         <span class="nav-badge" id="nav-audit-count">0</span>
@@ -1302,9 +1339,15 @@
           </label>
           <textarea id="context-input" rows="2" placeholder="Paste optional external context to scan for indirect injections..."></textarea>
 
-          <button id="submit-prompt-btn" class="btn btn-primary btn-pill" style="width: 100%; padding: 13px 20px; font-size: 0.94rem; margin-top: auto;" onclick="submitPrompt()">
-            Inspect Prompt &amp; Query Ollama
-          </button>
+          <div style="display: flex; gap: 8px; margin-top: auto; margin-top: 14px;">
+            <button id="submit-prompt-btn" class="btn btn-primary" style="flex: 2; padding: 13px 18px; font-size: 0.92rem;" onclick="submitPrompt()">
+              Inspect Prompt &amp; Query Ollama
+            </button>
+            <button type="button" class="btn btn-secondary" style="flex: 1; padding: 13px 12px; font-size: 0.82rem; white-space: nowrap;" onclick="openSavePromptModal()" title="Store prompt in separate SQLite training database">
+              Save to Training DB
+            </button>
+          </div>
+          <div id="playground-save-toast" style="display:none; font-size:0.78rem; font-weight:600; padding:8px 12px; margin-top:8px;"></div>
         </div>
 
         <!-- COLUMN 2: GUARDRAIL SECURITY VERDICT -->
@@ -1384,6 +1427,177 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- PAGE: TRAINING DATASET DB (SEPARATE DATABASE)            -->
+    <!-- ======================================================== -->
+    <div id="page-training-db" class="page-view">
+      <!-- Database Status & Retrain Card -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <div>
+            <span class="card-title">User Training Dataset Database</span>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
+              Dedicated SQLite database (<code>data/training_prompts.db</code>) storing user prompts used to train and refine the XGBoost + DeBERTa ensemble.
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="loadTrainingDbPrompts()">Refresh Database</button>
+            <button class="btn btn-primary" onclick="retrainFromDbView(this)" id="retrain-db-btn" title="Retrain model incorporating all stored prompts">
+              Retrain Model on DB Prompts
+            </button>
+          </div>
+        </div>
+
+        <!-- DB Metrics Summary -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 10px;">
+          <div style="background: var(--bg-secondary-subtle); border: 1px solid var(--border-secondary); padding: 14px 18px;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Total DB Prompts</div>
+            <div id="tdb-stat-total" style="font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin-top: 4px;">0</div>
+          </div>
+          <div style="background: var(--bg-secondary-subtle); border: 1px solid var(--border-secondary); padding: 14px 18px;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--block-color); text-transform: uppercase;">Malicious / Attacks</div>
+            <div id="tdb-stat-attacks" style="font-size: 1.8rem; font-weight: 800; color: var(--block-color); margin-top: 4px;">0</div>
+          </div>
+          <div style="background: var(--bg-secondary-subtle); border: 1px solid var(--border-secondary); padding: 14px 18px;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--pass-color); text-transform: uppercase;">Benign / Clean</div>
+            <div id="tdb-stat-benign" style="font-size: 1.8rem; font-weight: 800; color: var(--pass-color); margin-top: 4px;">0</div>
+          </div>
+          <div style="background: var(--bg-secondary-subtle); border: 1px solid var(--border-secondary); padding: 14px 18px;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--accent-primary); text-transform: uppercase;">Storage Location</div>
+            <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin-top: 8px;"><code>data/training_prompts.db</code></div>
+          </div>
+        </div>
+
+        <div id="tdb-retrain-banner" style="display: none; margin-top: 14px; padding: 10px 14px; font-size: 0.82rem; font-weight: 600;"></div>
+      </div>
+
+      <!-- Add New Prompt Form -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-secondary-header">
+          <span class="card-title">Add New Prompt to Training Database</span>
+          <span class="column-step-badge">Manual Input</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 14px;">
+          <div>
+            <label class="field-label" for="tdb-input-prompt">Prompt Text</label>
+            <textarea id="tdb-input-prompt" rows="3" placeholder="Enter an adversarial injection or benign reference prompt to store for model training..."></textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+            <div>
+              <label class="field-label" for="tdb-input-label">Ground-Truth Label</label>
+              <select id="tdb-input-label">
+                <option value="attack">Attack / Malicious Injection</option>
+                <option value="benign">Benign / Clean Safe Prompt</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="tdb-input-type">Attack Category / Type</label>
+              <select id="tdb-input-type">
+                <option value="prompt_injection">Prompt Injection (General)</option>
+                <option value="jailbreaking">Jailbreak (DAN / Persona Override)</option>
+                <option value="prompt_leaking">System Prompt Leaking / Extraction</option>
+                <option value="roleplay_override">Roleplay Constraint Override</option>
+                <option value="obfuscation">Obfuscation (Homoglyphs / Delimiters)</option>
+                <option value="none">None (Clean Benign)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="tdb-input-notes">Notes / Origin (Optional)</label>
+              <input type="text" id="tdb-input-notes" placeholder="e.g. Discovered in testing, edge case" />
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="button" class="btn btn-primary" onclick="submitManualTrainingPrompt()">
+              Save Prompt to Training Database
+            </button>
+          </div>
+          <div id="tdb-form-msg" style="display: none; padding: 10px 14px; font-weight: 600; font-size: 0.82rem;"></div>
+        </div>
+      </div>
+
+      <!-- Stored Prompts Table Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <span class="card-title">Stored Database Prompts</span>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 3px;">
+              All prompts in <code>training_prompts.db</code>. Retraining pulls these samples and upweights them 5x for active learning.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-secondary active-filter" id="tdb-filter-all" onclick="filterTrainingDb('all')">All</button>
+            <button class="btn btn-secondary" id="tdb-filter-attack" onclick="filterTrainingDb('attack')">Attacks Only</button>
+            <button class="btn btn-secondary" id="tdb-filter-benign" onclick="filterTrainingDb('benign')">Benign Only</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px;">ID</th>
+              <th>Prompt Text</th>
+              <th style="width: 110px;">Label</th>
+              <th style="width: 140px;">Attack Type</th>
+              <th style="width: 110px;">Source</th>
+              <th style="width: 130px;">Date Added</th>
+              <th style="width: 170px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tdb-table-body">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading training database...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Save Prompt to Training DB Modal -->
+    <div id="save-prompt-modal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) closeSavePromptModal()">
+      <div class="modal-dialog">
+        <div class="card-secondary-header" style="margin: -24px -24px 16px -24px; padding: 16px 24px;">
+          <span class="card-title">Save Prompt to Training Database</span>
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.88rem; cursor: pointer;" onclick="closeSavePromptModal()">&times;</button>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px;">
+          Persist this prompt into the dedicated SQLite database (<code>data/training_prompts.db</code>) to train future model iterations.
+        </p>
+        <div style="margin-bottom: 12px;">
+          <label class="field-label" for="modal-prompt-text">Prompt Text</label>
+          <textarea id="modal-prompt-text" rows="3" style="background: var(--bg-secondary-subtle);"></textarea>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label class="field-label" for="modal-label">Ground-Truth Label</label>
+            <select id="modal-label">
+              <option value="attack">Attack / Malicious Injection</option>
+              <option value="benign">Benign / Clean Safe Prompt</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="modal-attack-type">Attack Category</label>
+            <select id="modal-attack-type">
+              <option value="prompt_injection">Prompt Injection</option>
+              <option value="jailbreaking">Jailbreak (DAN / Persona)</option>
+              <option value="prompt_leaking">System Prompt Leaking</option>
+              <option value="roleplay_override">Roleplay Override</option>
+              <option value="obfuscation">Obfuscation / Homoglyphs</option>
+              <option value="none">None (Clean Benign)</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label class="field-label" for="modal-notes">Notes / Context (Optional)</label>
+          <input type="text" id="modal-notes" placeholder="e.g. Playground prompt submission" />
+        </div>
+        <div id="modal-error-msg" style="display:none; color:var(--block-color); font-size:0.8rem; margin-bottom:10px;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeSavePromptModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="confirmSavePromptToDB()">Save to Training DB</button>
+        </div>
       </div>
     </div>
 
@@ -1804,6 +2018,8 @@
 
       if (pageId === "page-audit") {
         loadAudit();
+      } else if (pageId === "page-training-db") {
+        loadTrainingDbPrompts();
       } else if (pageId === "page-benchmarks") {
         loadBenchmarks();
         loadSystemPrompt();
@@ -1832,6 +2048,17 @@
 
         const auditBadge = document.getElementById("nav-audit-count");
         if (auditBadge) auditBadge.textContent = st.total;
+
+        if (st.training_db) {
+          const tdbBadge = document.getElementById("nav-training-db-count");
+          if (tdbBadge) tdbBadge.textContent = st.training_db.total || 0;
+          const tTotal = document.getElementById("tdb-stat-total");
+          if (tTotal) tTotal.textContent = st.training_db.total || 0;
+          const tAttacks = document.getElementById("tdb-stat-attacks");
+          if (tAttacks) tAttacks.textContent = st.training_db.attacks || 0;
+          const tBenign = document.getElementById("tdb-stat-benign");
+          if (tBenign) tBenign.textContent = st.training_db.benign || 0;
+        }
 
         const dot = document.getElementById("ollama-dot");
         const txt = document.getElementById("ollama-status-text");
@@ -1999,13 +2226,312 @@
         const res = await fetch("/api/retrain", { method: "POST" });
         const r = await res.json();
         if (r.ok) {
-          alert(`Model retrained successfully with ${r.labeled_used} analyst feedback samples!`);
+          alert(`Model retrained successfully! Incorporating ${r.db_prompts_used || 0} user prompts from training_prompts.db and ${r.labeled_used || 0} audit feedback samples.`);
         } else {
           alert(`Retraining error: ${r.error}`);
         }
       } finally {
         if (btn) btn.disabled = false;
         await loadStats();
+      }
+    }
+
+    // ========================================================
+    // SEPARATE TRAINING DATABASE (SQLite) CONTROLLER
+    // ========================================================
+    let currentTdbFilter = null;
+
+    function openSavePromptModal() {
+      const text = document.getElementById("prompt-input").value.trim();
+      const modalText = document.getElementById("modal-prompt-text");
+      const errBox = document.getElementById("modal-error-msg");
+      if (errBox) errBox.style.display = "none";
+      modalText.value = text;
+      document.getElementById("save-prompt-modal").style.display = "flex";
+    }
+
+    function closeSavePromptModal() {
+      document.getElementById("save-prompt-modal").style.display = "none";
+    }
+
+    async function confirmSavePromptToDB() {
+      const prompt = document.getElementById("modal-prompt-text").value.trim();
+      const label = document.getElementById("modal-label").value;
+      const attackType = document.getElementById("modal-attack-type").value;
+      const notes = document.getElementById("modal-notes").value.trim();
+      const errBox = document.getElementById("modal-error-msg");
+      const toast = document.getElementById("playground-save-toast");
+
+      if (!prompt) {
+        if (errBox) {
+          errBox.textContent = "Please enter or paste prompt text to save.";
+          errBox.style.display = "block";
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/training-db/prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            label,
+            attack_type: attackType,
+            notes,
+            source: "playground_modal"
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          if (errBox) {
+            errBox.textContent = data.error || "Failed to save prompt.";
+            errBox.style.display = "block";
+          }
+          return;
+        }
+
+        closeSavePromptModal();
+        if (toast) {
+          toast.style.display = "block";
+          toast.style.background = "var(--pass-bg)";
+          toast.style.border = "1px solid var(--pass-border)";
+          toast.style.color = "var(--pass-color)";
+          toast.textContent = `✓ Stored in training_prompts.db as ${label.toUpperCase()} (${attackType}). Ready for retraining!`;
+          setTimeout(() => { toast.style.display = "none"; }, 5000);
+        }
+        await loadStats();
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = "Network error: " + err.message;
+          errBox.style.display = "block";
+        }
+      }
+    }
+
+    async function quickSaveVerdictToDB(promptText, label, taskId) {
+      if (!promptText) return;
+      try {
+        const res = await fetch("/api/training-db/prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: promptText,
+            label,
+            attack_type: label === "attack" ? "prompt_injection" : "none",
+            source: "verdict_quicksave",
+            notes: `Evaluated in playground (Task: ${taskId ? taskId.slice(0, 8) : "N/A"})`
+          })
+        });
+        const data = await res.json();
+        const statusEl = document.getElementById("analyst-label-status");
+        if (statusEl) {
+          statusEl.textContent = `✓ Saved to data/training_prompts.db as ${label.toUpperCase()}`;
+          statusEl.style.color = label === "attack" ? "var(--block-color)" : "var(--pass-color)";
+        }
+        await loadStats();
+      } catch (err) {
+        console.error("Failed to quick save to DB", err);
+      }
+    }
+
+    async function submitManualTrainingPrompt() {
+      const prompt = document.getElementById("tdb-input-prompt").value.trim();
+      const label = document.getElementById("tdb-input-label").value;
+      const attackType = document.getElementById("tdb-input-type").value;
+      const notes = document.getElementById("tdb-input-notes").value.trim();
+      const msgBox = document.getElementById("tdb-form-msg");
+
+      if (!prompt) {
+        msgBox.style.display = "block";
+        msgBox.style.background = "var(--block-bg)";
+        msgBox.style.color = "var(--block-color)";
+        msgBox.textContent = "Please enter prompt text.";
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/training-db/prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            label,
+            attack_type: attackType,
+            notes,
+            source: "manual_entry"
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          msgBox.style.display = "block";
+          msgBox.style.background = "var(--block-bg)";
+          msgBox.style.color = "var(--block-color)";
+          msgBox.textContent = data.error || "Failed to add prompt.";
+          return;
+        }
+
+        document.getElementById("tdb-input-prompt").value = "";
+        document.getElementById("tdb-input-notes").value = "";
+        msgBox.style.display = "block";
+        msgBox.style.background = "var(--pass-bg)";
+        msgBox.style.color = "var(--pass-color)";
+        msgBox.textContent = `✓ Prompt successfully added to training_prompts.db as ${label.toUpperCase()} (${data.record?.updated ? "Updated existing" : "New record ID #" + data.record?.id})!`;
+        setTimeout(() => { msgBox.style.display = "none"; }, 4000);
+
+        await loadTrainingDbPrompts();
+        await loadStats();
+      } catch (e) {
+        msgBox.style.display = "block";
+        msgBox.style.background = "var(--block-bg)";
+        msgBox.style.color = "var(--block-color)";
+        msgBox.textContent = "Error saving prompt: " + e.message;
+      }
+    }
+
+    async function loadTrainingDbPrompts(labelFilter) {
+      if (labelFilter !== undefined) currentTdbFilter = labelFilter;
+      const tbody = document.getElementById("tdb-table-body");
+      if (!tbody) return;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">${renderLoadingWithSpinner("Querying SQLite training database...")}</td></tr>`;
+
+      try {
+        let url = "/api/training-db/prompts?limit=200";
+        if (currentTdbFilter && currentTdbFilter !== "all") {
+          url += `&label=${encodeURIComponent(currentTdbFilter)}`;
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        const items = data.prompts || [];
+
+        // Update stats
+        if (data.stats) {
+          const tTotal = document.getElementById("tdb-stat-total");
+          if (tTotal) tTotal.textContent = data.stats.total || 0;
+          const tAttacks = document.getElementById("tdb-stat-attacks");
+          if (tAttacks) tAttacks.textContent = data.stats.attacks || 0;
+          const tBenign = document.getElementById("tdb-stat-benign");
+          if (tBenign) tBenign.textContent = data.stats.benign || 0;
+          const tBadge = document.getElementById("nav-training-db-count");
+          if (tBadge) tBadge.textContent = data.stats.total || 0;
+        }
+
+        if (items.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 32px;">
+                No prompts stored in training_prompts.db yet. Use the form above or click "Save to Training DB" in the Playground to add training data.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = "";
+        items.forEach(it => {
+          const tr = document.createElement("tr");
+          const isAttack = it.label === "attack";
+          const labelBadge = `<span class="badge ${isAttack ? 'badge-BLOCK' : 'badge-PASS'}">${it.label.toUpperCase()}</span>`;
+          const createdStr = it.created_at ? it.created_at.replace("T", " ").slice(0, 19) : "N/A";
+          const safePrompt = escapeHtml(it.prompt);
+          const snippet = safePrompt.length > 70 ? safePrompt.slice(0, 70) + "..." : safePrompt;
+
+          tr.innerHTML = `
+            <td><code>${it.id}</code></td>
+            <td title="${safePrompt}" style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${snippet}
+            </td>
+            <td>${labelBadge}</td>
+            <td><code style="font-size: 0.76rem;">${escapeHtml(it.attack_type || "none")}</code></td>
+            <td style="color: var(--text-secondary); font-size: 0.78rem;">${escapeHtml(it.source || "user")}</td>
+            <td style="color: var(--text-muted); font-size: 0.78rem;">${createdStr}</td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.74rem;" onclick="loadPromptIntoPlayground('${safePrompt.replace(/'/g, "\\'")}')" title="Load this prompt into Playground">
+                  Test in Playground
+                </button>
+                <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.74rem;" onclick="deleteTrainingDbPrompt(${it.id})" title="Delete from training database">
+                  Delete
+                </button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="color: var(--block-color); text-align: center; padding: 20px;">Failed to load prompts: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function filterTrainingDb(type) {
+      currentTdbFilter = type;
+      ["all", "attack", "benign"].forEach(k => {
+        const btn = document.getElementById("tdb-filter-" + k);
+        if (btn) {
+          if (k === type) btn.classList.add("active-filter");
+          else btn.classList.remove("active-filter");
+        }
+      });
+      loadTrainingDbPrompts(type);
+    }
+
+    async function deleteTrainingDbPrompt(id) {
+      if (!confirm(`Are you sure you want to delete prompt #${id} from the training database?`)) return;
+      try {
+        const res = await fetch(`/api/training-db/prompts/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          await loadTrainingDbPrompts();
+          await loadStats();
+        } else {
+          alert("Could not delete prompt.");
+        }
+      } catch (e) {
+        alert("Error deleting prompt: " + e.message);
+      }
+    }
+
+    function loadPromptIntoPlayground(text) {
+      document.getElementById("prompt-input").value = text;
+      switchPage("page-playground", document.querySelector(".nav-tab"));
+    }
+
+    async function retrainFromDbView(btn) {
+      const banner = document.getElementById("tdb-retrain-banner");
+      if (btn) btn.disabled = true;
+      if (banner) {
+        banner.style.display = "block";
+        banner.style.background = "var(--bg-secondary-subtle)";
+        banner.style.color = "var(--text-main)";
+        banner.style.border = "1px solid var(--border-secondary)";
+        banner.innerHTML = renderLoadingWithSpinner("Retraining XGBoost + DeBERTa ensemble with all stored database prompts...");
+      }
+
+      try {
+        const res = await fetch("/api/retrain", { method: "POST" });
+        const r = await res.json();
+        if (r.ok) {
+          if (banner) {
+            banner.style.background = "var(--pass-bg)";
+            banner.style.color = "var(--pass-color)";
+            banner.style.border = "1px solid var(--pass-border)";
+            banner.innerHTML = `✓ Retrained successfully! Integrated <strong>${r.db_prompts_used || 0}</strong> user prompts from <code>data/training_prompts.db</code> and <strong>${r.labeled_used || 0}</strong> feedback samples. Optimal Soft-Voting Weight w* = ${r.metrics?.optimal_w ?? 0.5}.`;
+          }
+          await loadStats();
+        } else {
+          if (banner) {
+            banner.style.background = "var(--block-bg)";
+            banner.style.color = "var(--block-color)";
+            banner.textContent = `Retraining failed: ${r.error}`;
+          }
+        }
+      } catch (err) {
+        if (banner) {
+          banner.style.background = "var(--block-bg)";
+          banner.style.color = "var(--block-color)";
+          banner.textContent = `Retraining network error: ${err.message}`;
+        }
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2100,17 +2626,17 @@
 
         <div class="feedback-bar">
           <div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">Analyst Verification</div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">Training Database Sync</div>
             <div id="analyst-label-status" style="font-size: 0.76rem; color: var(--text-secondary);">
-              ${item.label ? "Saved label: " + item.label.toUpperCase() : "Verify verdict accuracy for retraining:"}
+              ${item.label ? "Saved in training_prompts.db as: " + item.label.toUpperCase() : "Save prompt to separate SQLite training DB:"}
             </div>
           </div>
           <div class="feedback-actions">
             <button type="button" class="btn btn-success btn-pill" onclick="labelRecord('${item.task_id}', 'benign')">
-              Mark Benign
+              Save as Benign
             </button>
             <button type="button" class="btn btn-danger btn-pill" onclick="labelRecord('${item.task_id}', 'attack')">
-              Mark Attack
+              Save as Attack
             </button>
           </div>
         </div>

@@ -120,6 +120,18 @@ def save_feedback_to_jsonl(extra_samples: list, jsonl_path: str = None) -> int:
             existing_prompts.add(raw_prompt)
             added += 1
 
+            # Also persist to the separate training SQLite database
+            try:
+                from training_db import add_prompt
+                add_prompt(
+                    prompt=raw_prompt,
+                    label="attack" if lbl_str == "malicious" else "benign",
+                    attack_type=atk_type,
+                    source="analyst_feedback",
+                )
+            except Exception:
+                pass
+
     return added
 
 
@@ -338,6 +350,26 @@ def load_jsonl_dataset(
                 texts.append(raw_p)
                 labels.append(lbl)
                 attack_types.append(atk_t)
+
+    # Add user-stored prompts from the separate training SQLite database (data/training_prompts.db)
+    try:
+        from training_db import get_training_samples
+        db_samples = get_training_samples()
+        if db_samples:
+            for item in db_samples:
+                p_text = (item.get("prompt") or "").strip()
+                if not p_text:
+                    continue
+                lbl = 1 if item.get("label") == "attack" else 0
+                atk_t = str(item.get("attack_type") or ("prompt_injection" if lbl == 1 else "none"))
+                # Up-weight user prompts 5x for active learning adaptation
+                for _ in range(5):
+                    texts.append(p_text)
+                    labels.append(lbl)
+                    attack_types.append(atk_t)
+            print(f"      [Training DB] Loaded {len(db_samples)} prompts from separate SQLite training database.")
+    except Exception as e:
+        print(f"      [Training DB] Warning: could not load training_prompts.db: {e}")
 
     return texts, np.array(labels, dtype=np.int32), attack_types, records
 
