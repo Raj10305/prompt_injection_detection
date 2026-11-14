@@ -1,1 +1,1 @@
-{"w": 0.35, "t_lo": 0.35, "t_hi": 0.85}
+{"w_bert": 0.75, "w_xgb": 0.25, "w": 0.25, "t_lo": 0.35, "t_hi": 0.85, "primary_model": "BERT/DeBERTa"}

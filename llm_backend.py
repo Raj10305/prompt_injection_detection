@@ -47,15 +47,50 @@ OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT", "120"))
 _active_model = os.environ.get("OLLAMA_MODEL", "")
 
 
-def get_installed_ollama_models(timeout: float = 2.0) -> list:
-    """Return list of model names currently installed in local Ollama (same as `ollama list`)."""
-    try:
-        req = urllib.request.Request(OLLAMA_TAGS_URL, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return [m.get("name") for m in data.get("models", []) if m.get("name")]
-    except Exception:
-        return []
+def get_installed_ollama_models(timeout: float = 3.5) -> list:
+    """
+    Return list of model names currently installed in local Ollama (same as `ollama list`).
+    Attempts 127.0.0.1 and localhost, and auto-spawns `ollama serve` if installed but inactive.
+    """
+    endpoints = [
+        OLLAMA_TAGS_URL,
+        "http://127.0.0.1:11434/api/tags",
+        "http://localhost:11434/api/tags",
+    ]
+    seen_endpoints = set()
+    for ep in endpoints:
+        if ep in seen_endpoints:
+            continue
+        seen_endpoints.add(ep)
+        try:
+            req = urllib.request.Request(ep, method="GET")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                models = [m.get("name") for m in data.get("models", []) if m.get("name")]
+                if models:
+                    return models
+        except Exception:
+            continue
+
+    # If unreachable, check if ollama CLI is available on the machine and attempt auto-serve
+    import shutil
+    import subprocess
+    ollama_bin = shutil.which("ollama") or os.path.expanduser(r"~\AppData\Local\Programs\Ollama\ollama.exe")
+    if os.path.exists(ollama_bin) or shutil.which("ollama"):
+        try:
+            # Start background detached process
+            flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+            subprocess.Popen([ollama_bin, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
+            time.sleep(2.0)
+            # Re-probe 127.0.0.1
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return [m.get("name") for m in data.get("models", []) if m.get("name")]
+        except Exception:
+            pass
+
+    return []
 
 
 def set_active_model(name: str) -> None:

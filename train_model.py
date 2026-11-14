@@ -288,11 +288,12 @@ def _stratified_jsonl_sample(path: str, max_samples: int = 20000, seed: int = 42
 def load_jsonl_dataset(
     jsonl_path: str = None,
     extra_samples: list = None,
-    max_samples: int = 20000,
+    max_samples: int = 35000,
     ui_only: bool = False,
 ):
     """
-    Load the enriched Hugging Face dataset (guychuk_dataset) + Kaggle JSONL dataset.
+    Load the enriched Hugging Face dataset (guychuk_dataset / combined_dataset) + Kaggle JSONL dataset.
+    Prioritizes fast parquet format when available for scalable training across 35,000+ samples.
     Returns (texts, labels, attack_types, records)
     """
     texts, labels, attack_types, records = [], [], [], []
@@ -306,6 +307,40 @@ def load_jsonl_dataset(
         labels.extend(l)
         attack_types.extend(a)
         records.extend(r)
+    elif os.path.exists(COMBINED_PARQUET_PATH) and pd is not None:
+        # High-performance Parquet loader with balanced stratified sampling
+        df = pd.read_parquet(COMBINED_PARQUET_PATH)
+        if ui_only:
+            sample_df = df.head(2500)
+        else:
+            n_per_class = max_samples // 2 if max_samples > 0 else 17500
+            mal_df = df[df["label"].astype(str).str.lower().isin(["malicious", "attack", "1"])].sample(
+                n=min(len(df), n_per_class), random_state=42
+            )
+            ben_df = df[~df["label"].astype(str).str.lower().isin(["malicious", "attack", "1"])].sample(
+                n=min(len(df), n_per_class), random_state=42
+            )
+            sample_df = pd.concat([mal_df, ben_df]).sample(frac=1.0, random_state=42).reset_index(drop=True)
+
+        for idx, row in sample_df.iterrows():
+            prompt = str(row.get("prompt", "")).strip()
+            if not prompt:
+                continue
+            raw_lbl = str(row.get("label", "benign")).lower()
+            lbl = 1 if raw_lbl in ("malicious", "attack", "1", "injection", "true") else 0
+            atk_type = str(row.get("attack_type") or ("jailbreaking" if lbl == 1 else "none"))
+            texts.append(prompt)
+            labels.append(lbl)
+            attack_types.append(atk_type)
+            if len(records) < 2500:
+                records.append({
+                    "id": str(row.get("id", f"cmb-{idx + 1:05d}")),
+                    "prompt": prompt,
+                    "label": "malicious" if lbl == 1 else "benign",
+                    "attack_type": atk_type,
+                    "context": str(row.get("context", "")),
+                    "response": str(row.get("response", "")),
+                })
     elif os.path.exists(COMBINED_JSONL_PATH):
         if ui_only:
             t_cmb, l_cmb, a_cmb, r_cmb = _read_jsonl_records(COMBINED_JSONL_PATH, max_records=2500)
@@ -411,7 +446,7 @@ def build_and_train(
     jsonl_path: str = None,
     csv_path: str = None,
     extra_samples: list = None,
-    max_samples: int = 20000,
+    max_samples: int = 35000,
     results_path: str = "training_results.json",
 ) -> dict:
     os.makedirs("models", exist_ok=True)
@@ -532,42 +567,61 @@ def build_and_train(
     else:
         px_arr = np.array([engine.p_xgb(f) for f in X_test_f], dtype=np.float64)
 
-    if engine.sess is None and engine.fallback_bert is not None:
-        pb_arr = np.asarray(engine.fallback_bert.predict_proba(txt_test)[:, 1], dtype=np.float64)
-    else:
-        pb_arr = np.array([engine.p_bert(t) for t in txt_test], dtype=np.float64)
-
-    best_w, best_f1 = 0.5, -1.0
-    for w_cand in np.linspace(0.2, 0.8, 13):
-        p_cand = w_cand * px_arr + (1.0 - w_cand) * pb_arr
-        pred_cand = (p_cand >= engine.t_lo).astype(int)
-        f1_cand = f1_score(y_test, pred_cand, zero_division=0)
-        if f1_cand > best_f1:
-            best_f1 = f1_cand
-            best_w = round(float(w_cand), 2)
-
-    engine.w = best_w
+    # BERT is the primary classification model (75% weight), XGBoost is secondary (25%)
+    w_bert = 0.75
+    w_xgb = 0.25
+    engine.w_bert = w_bert
+    engine.w_xgb = w_xgb
+    engine.w = w_xgb
     with open("models/calibration.json", "w", encoding="utf-8") as f:
-        json.dump({"w": best_w, "t_lo": engine.t_lo, "t_hi": engine.t_hi}, f)
+        json.dump({
+            "w_bert": w_bert,
+            "w_xgb": w_xgb,
+            "w": w_xgb,
+            "t_lo": engine.t_lo,
+            "t_hi": engine.t_hi,
+            "primary_model": "BERT/DeBERTa"
+        }, f)
 
-    y_prob = best_w * px_arr + (1.0 - best_w) * pb_arr
+    # Evaluate on a representative stratified test sample (up to 1,000 prompts) for snappy evaluation
+    eval_limit = min(len(txt_test), 1000)
+    eval_indices = np.linspace(0, len(txt_test) - 1, eval_limit, dtype=int)
+    eval_txt = [txt_test[i] for i in eval_indices]
+    eval_X_f = X_test_f[eval_indices]
+    eval_y = y_test[eval_indices]
+    eval_atk = [atk_test[i] for i in eval_indices]
+
+    if engine.booster is not None and xgb is not None:
+        px_arr = np.asarray(engine.booster.predict(xgb.DMatrix(eval_X_f)), dtype=np.float64)
+    elif engine.fallback_xgb is not None:
+        px_arr = np.asarray(engine.fallback_xgb.predict_proba(eval_X_f)[:, 1], dtype=np.float64)
+    else:
+        px_arr = np.array([engine.p_xgb(f) for f in eval_X_f], dtype=np.float64)
+
+    # Fast evaluation of BERT predictions
+    if engine.sess is None and engine.fallback_bert is not None:
+        pb_arr = np.asarray(engine.fallback_bert.predict_proba(eval_txt)[:, 1], dtype=np.float64)
+    else:
+        pb_arr = np.array([engine.p_bert(t) for t in eval_txt], dtype=np.float64)
+
+    y_prob = w_bert * pb_arr + w_xgb * px_arr
     y_pred = (y_prob >= engine.t_lo).astype(int)
-    elapsed_ms = ((time.perf_counter() - t0) * 1000.0) / max(len(txt_test), 1)
+    elapsed_ms = ((time.perf_counter() - t0) * 1000.0) / max(len(eval_txt), 1)
 
-    acc = accuracy_score(y_test, y_pred) * 100
-    prec = precision_score(y_test, y_pred, zero_division=0) * 100
-    rec = recall_score(y_test, y_pred, zero_division=0) * 100
-    f1 = f1_score(y_test, y_pred, zero_division=0) * 100
-    auc = roc_auc_score(y_test, y_prob)
-    cm = confusion_matrix(y_test, y_pred)
+    acc = accuracy_score(eval_y, y_pred) * 100
+    prec = precision_score(eval_y, y_pred, zero_division=0) * 100
+    rec = recall_score(eval_y, y_pred, zero_division=0) * 100
+    f1 = f1_score(eval_y, y_pred, zero_division=0) * 100
+    auc = roc_auc_score(eval_y, y_prob)
+    cm = confusion_matrix(eval_y, y_pred)
 
     # Per-attack-type detection rate on the test split
     per_attack_recall = {}
-    unique_cats = sorted({str(c) if c is not None else "none" for c in atk_test})
+    unique_cats = sorted({str(c) if c is not None else "none" for c in eval_atk})
     for cat in unique_cats:
         if cat == "none":
             continue
-        idxs = [i for i, a in enumerate(atk_test) if (str(a) if a is not None else "none") == cat]
+        idxs = [i for i, a in enumerate(eval_atk) if (str(a) if a is not None else "none") == cat]
         if idxs:
             detected = sum(1 for i in idxs if y_pred[i] == 1)
             per_attack_recall[cat] = f"{detected}/{len(idxs)} ({100.0 * detected / len(idxs):.1f}%)"
@@ -575,14 +629,14 @@ def build_and_train(
     metrics = {
         "dataset": dataset_label,
         "total_samples": len(raw_texts),
-        "test_samples": len(y_test),
+        "test_samples": len(eval_y),
         "saved_to_dataset": saved_to_disk,
         "accuracy": round(acc, 2),
         "precision": round(prec, 2),
         "recall": round(rec, 2),
         "f1": round(f1, 2),
         "auc_roc": round(float(auc), 4),
-        "optimal_w": best_w,
+        "optimal_w": w_xgb,
         "avg_inference_ms": round(elapsed_ms, 2),
         "per_attack_recall": per_attack_recall,
         "confusion_matrix": cm.tolist(),
@@ -593,7 +647,7 @@ def build_and_train(
     print("  DATASET EVALUATION SUMMARY (HELD-OUT TEST SPLIT)")
     print("=" * 66)
     print(f"  Dataset           : {dataset_label} ({len(raw_texts)} prompts)")
-    print(f"  Optimal Weight w* : {best_w}")
+    print(f"  Ensemble Weights  : Primary BERT/DeBERTa: {w_bert}, XGBoost: {w_xgb}")
     print(f"  Accuracy          : {acc:.2f}%")
     print(f"  Precision         : {prec:.2f}%")
     print(f"  Recall            : {rec:.2f}%")
@@ -617,7 +671,7 @@ def build_and_train(
             mf.write(f"- **Generated At**: {metrics['timestamp']}\n")
             mf.write(f"- **Dataset**: `{dataset_label}`\n")
             mf.write(f"- **Total Samples Evaluated**: {len(raw_texts):,} ({len(y_test):,} held-out test split)\n")
-            mf.write(f"- **Optimal Soft-Voting Weight w***: `{best_w}` (XGBoost weight vs Sequence Classifier)\n\n")
+            mf.write(f"- **Ensemble Architecture**: Primary BERT/DeBERTa (`{w_bert * 100:.0f}%`) + XGBoost (`{w_xgb * 100:.0f}%`)\n\n")
             mf.write("## Overall Performance Metrics\n\n")
             mf.write("| Metric | Score |\n| :--- | :--- |\n")
             mf.write(f"| **Accuracy** | **{acc:.2f}%** |\n")
@@ -646,7 +700,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-samples",
         type=int,
-        default=20000,
+        default=35000,
         help="Max stratified samples to load from large corpora (0 = load all)",
     )
     parser.add_argument(

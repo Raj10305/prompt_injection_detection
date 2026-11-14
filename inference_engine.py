@@ -22,9 +22,12 @@ except ImportError:
     xgb = None
 
 try:
-    from transformers import AutoTokenizer
+    import torch
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
 except ImportError:
+    torch = None
     AutoTokenizer = None
+    AutoModelForSequenceClassification = None
 
 
 class InferenceEngine:
@@ -33,18 +36,23 @@ class InferenceEngine:
         onnx_path="models/distilbert.onnx",
         xgb_path="models/xgb.json",
         fallback_bert_path="models/bert_fallback.pkl",
-        w=0.5,
+        w_bert=0.75,
+        w_xgb=0.25,
         t_lo=0.35,
         t_hi=0.85,
     ):
-        self.w = w
+        self.w_bert = w_bert
+        self.w_xgb = w_xgb
+        self.w = w_xgb
         self.t_lo = t_lo
         self.t_hi = t_hi
         if os.path.exists("models/calibration.json"):
             try:
                 with open("models/calibration.json", "r", encoding="utf-8") as cf:
                     cal = json.load(cf)
-                    self.w = float(cal.get("w", self.w))
+                    self.w_bert = float(cal.get("w_bert", 0.75))
+                    self.w_xgb = float(cal.get("w_xgb", cal.get("w", 0.25)))
+                    self.w = self.w_xgb
                     self.t_lo = float(cal.get("t_lo", self.t_lo))
                     self.t_hi = float(cal.get("t_hi", self.t_hi))
             except Exception:
@@ -54,8 +62,21 @@ class InferenceEngine:
         self.booster = None
         self.fallback_bert = None
         self.fallback_xgb = None
+        self.hf_model = None
+        self.hf_tok = None
 
-        # 1. Load ONNX Runtime session if distilbert.onnx exists
+        # 1. Primary Transformer: Load local Hugging Face DeBERTa/BERT model if available
+        if AutoTokenizer is not None and AutoModelForSequenceClassification is not None and torch is not None:
+            try:
+                hf_name = "protectai/deberta-v3-base-prompt-injection-v2"
+                self.hf_tok = AutoTokenizer.from_pretrained(hf_name)
+                self.hf_model = AutoModelForSequenceClassification.from_pretrained(hf_name)
+                self.hf_model.eval()
+            except Exception:
+                self.hf_model = None
+                self.hf_tok = None
+
+        # 2. Load ONNX Runtime session if distilbert.onnx exists
         if ort is not None and os.path.exists(onnx_path):
             opts = ort.SessionOptions()
             opts.graph_optimization_level = (
@@ -76,12 +97,15 @@ class InferenceEngine:
                 except Exception:
                     self.tok = None
 
-        # Load calibrated neural sequence classifier if ONNX file isn't exported yet
-        if self.sess is None and os.path.exists(fallback_bert_path):
-            with open(fallback_bert_path, "rb") as f:
-                self.fallback_bert = pickle.load(f)
+        # 3. Load calibrated neural sequence classifier (MLP on n-grams) as lightweight fallback
+        if os.path.exists(fallback_bert_path):
+            try:
+                with open(fallback_bert_path, "rb") as f:
+                    self.fallback_bert = pickle.load(f)
+            except Exception:
+                self.fallback_bert = None
 
-        # 2. Load XGBoost booster
+        # 4. Load XGBoost booster (Secondary Structural Feature Verifier)
         if xgb is not None and os.path.exists(xgb_path):
             self.booster = xgb.Booster()
             self.booster.load_model(xgb_path)
@@ -96,7 +120,19 @@ class InferenceEngine:
         return e / e.sum(axis=-1, keepdims=True)
 
     def p_bert(self, text: str) -> float:
-        """P(attack) from the ONNX DistilBERT classifier (or neural sequence model)."""
+        """P(attack) from the Primary BERT/DeBERTa classifier (with ONNX & MLP sequence fallbacks)."""
+        # Primary: PyTorch DeBERTa/BERT prompt injection classifier
+        if self.hf_model is not None and self.hf_tok is not None and torch is not None:
+            try:
+                inputs = self.hf_tok(text, return_tensors="pt", truncation=True, max_length=256)
+                with torch.no_grad():
+                    logits = self.hf_model(**inputs).logits
+                    probs = torch.softmax(logits, dim=-1).squeeze().tolist()
+                    return float(probs[1])
+            except Exception:
+                pass
+
+        # ONNX runtime accelerated sequence inference
         if self.sess is not None and self.tok is not None:
             enc = self.tok(
                 text,
@@ -112,21 +148,22 @@ class InferenceEngine:
             logits = self.sess.run(None, feed)[0]
             return float(self._softmax(logits)[0, 1])
 
+        # Neural sequence model fallback
         if self.fallback_bert is not None:
             prob = self.fallback_bert.predict_proba([text])[0, 1]
             return float(prob)
 
-        # Heuristic contextual fallback if no model is trained yet
         return 0.5
 
-    def p_xgb(self, feats: np.ndarray) -> float:
-        """P(attack) from XGBoost on the 393-d engineered feature vector."""
+    def p_xgb(self, feats) -> float:
+        """P(attack) from XGBoost on the 393-d engineered feature vector (Secondary Verifier)."""
+        feats_arr = np.asarray(feats, dtype=np.float32).reshape(1, -1)
         if self.booster is not None and xgb is not None:
-            d = xgb.DMatrix(feats.reshape(1, -1))
+            d = xgb.DMatrix(feats_arr)
             return float(self.booster.predict(d)[0])
 
         if self.fallback_xgb is not None:
-            prob = self.fallback_xgb.predict_proba(feats.reshape(1, -1))[0, 1]
+            prob = self.fallback_xgb.predict_proba(feats_arr)[0, 1]
             return float(prob)
 
         # Heuristic feature fallback if no model is trained yet
@@ -137,10 +174,20 @@ class InferenceEngine:
         return float(raw_score)
 
     def predict(self, text: str, feats: np.ndarray) -> dict:
-        """Soft voting: p = w * p_x + (1 - w) * p_b."""
+        """
+        Primary BERT Classifier with Secondary XGBoost Structural Verifier:
+        p = w_bert * p_b + w_xgb * p_x
+        Default weights: BERT = 75%, XGBoost = 25%
+        """
         px = self.p_xgb(feats)
         pb = self.p_bert(text)
-        p = self.w * px + (1.0 - self.w) * pb
+
+        # Soft voting weighted towards primary BERT model
+        p = self.w_bert * pb + self.w_xgb * px
+
+        # If BERT has high confidence (>= 0.82), ensure it drives the block decision
+        if pb >= 0.82:
+            p = max(p, pb)
 
         if p >= self.t_hi:
             action = "BLOCK"
@@ -154,4 +201,7 @@ class InferenceEngine:
             "p_xgb": round(float(px), 4),
             "p_bert": round(float(pb), 4),
             "action": action,
+            "primary_model": "BERT/DeBERTa",
+            "w_bert": self.w_bert,
+            "w_xgb": self.w_xgb,
         }

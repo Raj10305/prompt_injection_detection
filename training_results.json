@@ -1,31 +1,29 @@
 {
-  "dataset": "combined_dataset.jsonl",
-  "total_samples": 15009,
-  "test_samples": 3002,
+  "dataset": "guychuk_dataset + Prompt_INJECTION_And_Benign_DATASET",
+  "total_samples": 35029,
+  "test_samples": 1000,
   "saved_to_dataset": 0,
-  "accuracy": 98.6,
-  "precision": 98.73,
-  "recall": 97.74,
-  "f1": 98.23,
-  "auc_roc": 0.9967,
-  "optimal_w": 0.35,
-  "avg_inference_ms": 2.46,
+  "accuracy": 99.9,
+  "precision": 100.0,
+  "recall": 99.81,
+  "f1": 99.9,
+  "auc_roc": 0.9999,
+  "optimal_w": 0.25,
+  "avg_inference_ms": 1.85,
   "per_attack_recall": {
-    "code_execution": "25/25 (100.0%)",
-    "data_leakage": "1/1 (100.0%)",
-    "jailbreaking": "442/469 (94.2%)",
-    "obfuscation": "13/13 (100.0%)",
-    "role_playing": "685/685 (100.0%)"
+    "jailbreaking": "466/467 (99.8%)",
+    "obfuscation": "4/4 (100.0%)",
+    "role_playing": "42/42 (100.0%)"
   },
   "confusion_matrix": [
     [
-      1794,
-      15
+      487,
+      0
     ],
     [
-      27,
-      1166
+      1,
+      512
     ]
   ],
-  "timestamp": "2026-11-13 12:38:54"
+  "timestamp": "2026-11-14 19:24:19"
 }
