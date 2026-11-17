@@ -465,7 +465,7 @@ def retrain_models():
         db_stats_before = training_db.get_db_stats()
         metrics = build_and_train(extra_samples=labeled)
         _, _, _, KAGGLE_RECORDS = load_jsonl_dataset(ui_only=True)
-        ENGINE = InferenceEngine(w=metrics.get("optimal_w", 0.5))
+        ENGINE = InferenceEngine(w_xgb=metrics.get("optimal_w", 0.25))
         if shap is not None and ENGINE.booster is not None:
             try:
                 EXPLAINER = shap.TreeExplainer(ENGINE.booster)
